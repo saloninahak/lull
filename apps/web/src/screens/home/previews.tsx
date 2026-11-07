@@ -194,7 +194,7 @@ export function HangmanPreview() {
 export function RpsPreview() {
   return (
     <div className="flex h-full items-center justify-center gap-5" aria-hidden="true">
-      {(['rock', 'paper', 'scissors'] as const).map((t, i) => (
+      {(['Rock', 'Paper', 'Scissors'] as const).map((t, i) => (
         <span
           key={t}
           className={`flex size-14 items-center justify-center rounded-full border text-[11px] tracking-[0.02em] ${
@@ -279,14 +279,14 @@ export function ZipPreview() {
 
 export function NpatPreview() {
   const rows = [
-    ['name', 'bob'],
-    ['place', 'bali'],
-    ['animal', 'bear'],
-    ['thing', 'ball'],
+    ['Name', 'Bob'],
+    ['Place', 'Bali'],
+    ['Animal', 'Bear'],
+    ['Thing', 'Ball'],
   ] as const;
   return (
     <div className="flex h-full items-center justify-center gap-6" aria-hidden="true">
-      <span className="display text-[56px] text-blue">b</span>
+      <span className="display text-[56px] text-blue">B</span>
       <span className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 font-mono text-[12px]">
         {rows.map(([label, word]) => (
           <span key={label} className="contents">
@@ -419,7 +419,7 @@ export function ConsequencesPreview() {
 }
 
 export function OneStoryPreview() {
-  const words = ['once', 'upon', 'a', 'small', 'and'];
+  const words = ['Once', 'upon', 'a', 'small', 'and'];
   return (
     <p
       className="max-w-[180px] text-center text-[15px] leading-relaxed text-ink"

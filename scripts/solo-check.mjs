@@ -7,6 +7,7 @@
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import {
+
   solveFutoshiki,
   solveSudoku,
   solveWordSearch,
@@ -15,6 +16,13 @@ import {
   wheelPath,
   wheelWordsFor,
 } from './solvers.mjs';
+/** the same, for part of the text */
+const cic = (t) => new RegExp(String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+
+/** a whole-string match that ignores case, since the app uses sentence case */
+const ci = (t) => new RegExp(`^${String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
 
 const base = process.argv[2]?.startsWith('http') ? process.argv[2] : 'http://localhost:5173';
 const errors = [];
@@ -77,14 +85,14 @@ try {
 
     /* back, from a page opened straight from a link: there's nothing behind it, so home */
     await page.goto(`${base}/play/zip`, { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'back', exact: true }).click();
+    await page.getByRole('button', { name: /^back$/i }).click();
     await page.waitForURL((u) => new URL(u).pathname === '/');
 
     /* the dock's own start a room, with no game in mind yet, still asks which */
     await page.getByRole('button', { name: 'start a room' }).first().click();
     await page.waitForURL('**/new');
     await expect(page.getByRole('group', { name: 'game' })).toBeVisible();
-    await page.getByRole('button', { name: 'back', exact: true }).click();
+    await page.getByRole('button', { name: /^back$/i }).click();
     await page.waitForURL((u) => new URL(u).pathname === '/');
 
     /* home's small sheets ---------------------------------------------------- */
@@ -103,11 +111,11 @@ try {
     /* sudoku ---------------------------------------------------------------- */
     await page.getByRole('button', { name: 'open sudoku' }).click();
     await page.waitForURL('**/play/sudoku');
-    await expect(page.getByText('on your own', { exact: true })).toBeVisible();
+    await expect(page.getByText(ci('on your own'))).toBeVisible();
     await expect(page.getByRole('gridcell')).toHaveCount(81);
     // how to play, from the small ? at the top
     await page.getByRole('button', { name: 'how to play' }).click();
-    await expect(page.getByRole('dialog', { name: 'how to play' })).toContainText('1 to 9');
+    await expect(page.getByRole('dialog', { name: 'how to play' })).toContainText(cic('1 to 9'));
     await wait(400);
     await shot('sudoku-rules');
     await page.keyboard.press('Escape');
@@ -133,7 +141,7 @@ try {
     await expect(page.getByRole('button', { name: 'notes', pressed: true })).toBeVisible();
     for (const d of jot) await page.keyboard.press(String(d));
     await expect(page.locator(`[data-cell="${noted}"]`)).toHaveAccessibleName(
-      new RegExp(`, notes ${jot.join(' ')}$`),
+      new RegExp(`, notes ${jot.join(' ')}$`, "i"),
     );
     await page.keyboard.press('n');
     await expect(page.getByRole('button', { name: 'notes', pressed: false })).toBeVisible();
@@ -141,18 +149,18 @@ try {
     // a hint fills the chosen cell with the right digit
     await page.getByRole('button', { name: 'hint' }).click();
     await expect(page.locator(`[data-cell="${noted}"]`)).toHaveAccessibleName(
-      new RegExp(`, ${solution[noted]}$`),
+      new RegExp(`, ${solution[noted]}$`, "i"),
     );
     for (const [n, cell] of empty.entries()) {
       await page.locator(`[data-cell="${cell}"]`).click();
       await page.keyboard.press(String(solution[cell]));
       if (n === 12) await shot('sudoku-playing');
     }
-    await expect(status).toHaveText('solved.. solved with 1 hint.');
+    await expect(status).toHaveText(ci('solved.. solved with 1 hint.'));
     await wait(1100);
     await shot('sudoku-solved');
     await page.getByRole('button', { name: 'another one?' }).click();
-    await expect(status).toHaveText('fill every row, column and box with 1 to 9.');
+    await expect(status).toHaveText(ci('fill every row, column and box with 1 to 9.'));
     await expect(page.getByRole('gridcell', { name: /, empty$/ }).first()).toBeVisible();
     const next = await readCells(page, /, (\d), given$/);
     if (JSON.stringify(next) === JSON.stringify(puzzle))
@@ -175,9 +183,9 @@ try {
     await expect(page.getByRole('group', { name: 'game' })).toHaveCount(0);
     await shot('sudoku-new-room');
     // back returns to the puzzle, and back again to home
-    await page.getByRole('button', { name: 'back', exact: true }).click();
+    await page.getByRole('button', { name: /^back$/i }).click();
     await page.waitForURL('**/play/sudoku');
-    await page.getByRole('button', { name: 'back', exact: true }).click();
+    await page.getByRole('button', { name: /^back$/i }).click();
     await page.waitForURL((u) => new URL(u).pathname === '/');
     await expect(page.getByRole('button', { name: 'open sudoku' })).toBeVisible();
 
@@ -194,7 +202,7 @@ try {
       }
       // the screen loads on demand, so wait for the whole grid before reading it
       await expect(page.getByRole('gridcell')).toHaveCount(size * size);
-      const onLine = page.getByRole('gridcell', { name: /on your line$/ });
+      const onLine = page.getByRole('gridcell', { name: /on your line$/i });
       if (size === 6) {
         // the shuffle gives a different grid
         const before = JSON.stringify(await readCells(page, /, number (\d+)/));
@@ -207,7 +215,7 @@ try {
           await page.getByRole('button', { name: 'hint' }).click();
           await expect(onLine).toHaveCount(i);
         }
-        await expect(page.getByRole('gridcell', { name: /number 1, on your line$/ })).toHaveCount(
+        await expect(page.getByRole('gridcell', { name: /number 1, on your line$/i })).toHaveCount(
           1,
         );
         await page.getByRole('button', { name: 'start over' }).click();
@@ -234,7 +242,7 @@ try {
         await page.locator(`[data-cell="${path[9]}"]`).focus();
         await page.keyboard.press('Backspace');
         await expect(onLine).toHaveCount(9);
-        await page.getByRole('button', { name: 'undo', exact: true }).first().click();
+        await page.getByRole('button', { name: /^undo$/i }).first().click();
         await expect(onLine).toHaveCount(8);
       }
       for (const c of path.slice(size === 6 ? 8 : 10)) {
@@ -242,13 +250,13 @@ try {
       }
       // the three hints at 6×6 count for that grid, even after starting over
       await expect(status).toHaveText(
-        size === 6 ? 'solved.. solved with 3 hints.' : 'solved.. nicely done.',
+        ci(size === 6 ? 'solved.. solved with 3 hints.' : 'solved.. nicely done.'),
       );
       if (size === 6) {
         await wait(1100);
         await shot('zip-solved');
         await page.getByRole('button', { name: 'another one?' }).click();
-        await expect(status).toHaveText(/^start on 1/);
+        await expect(status).toHaveText(/^start on 1/i);
       }
     }
 
@@ -256,7 +264,7 @@ try {
     await page.goto(base, { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'open hangman' }).click();
     await page.waitForURL('**/play/hangman');
-    await expect(status).toHaveText('guess the word. tap or type a letter.');
+    await expect(status).toHaveText(ci('guess the word. tap or type a letter.'));
     // a hint shows a letter for a miss
     await page.getByRole('button', { name: 'hint, costs a miss' }).click();
     await expect(page.getByRole('img', { name: '1 of 6 misses' })).toBeVisible();
@@ -264,28 +272,28 @@ try {
     let n = 0;
     for (const l of 'etaoinshrdlucmfwypvbgkqjxz') {
       // the screen-reader line changes at once; the visible one fades out first
-      if ((await status.textContent()) !== 'guess the word. tap or type a letter.') break;
+      if (!ci('guess the word. tap or type a letter.').test((await status.textContent()) ?? '')) break;
       // the hint already used this one
       if (!(await page.getByRole('button', { name: l, exact: true }).count())) continue;
       // half by tapping, half by typing
       if (n++ % 2) await page.keyboard.press(l);
       else await page.getByRole('button', { name: l, exact: true }).click();
       await expect(
-        page.getByRole('button', { name: new RegExp(`^${l}, (in|not in) the word$`) }),
+        page.getByRole('button', { name: new RegExp(`^${l}, (in|not in) the word$`, "i") }),
       ).toBeVisible();
       if (n === 4) await shot('hangman-playing');
     }
-    await expect(status).toHaveText(/^(you got it|out of guesses)\.\. the word was [a-z]+$/);
+    await expect(status).toHaveText(/^(you got it|out of guesses)\.\. the word was [a-z]+$/i);
     await wait(1100);
     await shot('hangman-end');
     await page.getByRole('button', { name: 'another word?' }).click();
-    await expect(status).toHaveText('guess the word. tap or type a letter.');
+    await expect(status).toHaveText(ci('guess the word. tap or type a letter.'));
     // the shuffle, mid-word: a fresh word with every letter open again
-    await page.getByRole('button', { name: 'e', exact: true }).click();
-    await expect(page.getByRole('button', { name: /^e, (in|not in) the word$/ })).toBeVisible();
+    await page.getByRole('button', { name: /^e$/i }).click();
+    await expect(page.getByRole('button', { name: /^e, (in|not in) the word$/i })).toBeVisible();
     await page.getByRole('button', { name: 'new word' }).click();
-    await expect(page.getByRole('button', { name: 'e', exact: true })).toBeVisible();
-    await expect(status).toHaveText('guess the word. tap or type a letter.');
+    await expect(page.getByRole('button', { name: /^e$/i })).toBeVisible();
+    await expect(status).toHaveText(ci('guess the word. tap or type a letter.'));
     await page.getByRole('button', { name: 'play with friends' }).click();
     await page.waitForURL('**/new?game=hangman');
 
@@ -305,7 +313,7 @@ try {
     const spots = solveWordSearch(10, letters, words);
     // a hint rings the first letter of a word still to find
     await page.getByRole('button', { name: 'hint' }).click();
-    await expect(page.getByRole('gridcell', { name: /a word starts here$/ })).toHaveCount(1);
+    await expect(page.getByRole('gridcell', { name: /a word starts here$/i })).toHaveCount(1);
     const centerOf = async (c) => {
       const b = await page.locator(`[data-cell="${c}"]`).boundingBox();
       return [b.x + b.width / 2, b.y + b.height / 2];
@@ -332,7 +340,7 @@ try {
         await shot('wordsearch-playing');
       }
     }
-    await expect(status).toHaveText('solved.. solved with 1 hint.');
+    await expect(status).toHaveText(ci('solved.. solved with 1 hint.'));
     await wait(1100);
     await shot('wordsearch-solved');
     await page.getByRole('button', { name: 'race friends' }).click();
@@ -366,7 +374,7 @@ try {
     await cellF(fempty[1]).click();
     await page.getByRole('button', { name: 'hint' }).click();
     await expect(cellF(fempty[1])).toHaveAccessibleName(
-      new RegExp(`^row \\d, column \\d, ${fsol[fempty[1]]}(,|$)`),
+      new RegExp(`^row \\d, column \\d, ${fsol[fempty[1]]}(,|$)`, "i"),
     );
     for (const [i, c] of fempty.entries()) {
       if (i === 1) continue;
@@ -377,7 +385,7 @@ try {
         await shot('futoshiki-playing');
       }
     }
-    await expect(status).toHaveText('solved.. solved with 1 hint.');
+    await expect(status).toHaveText(ci('solved.. solved with 1 hint.'));
     await wait(1100);
     await shot('futoshiki-solved');
 
@@ -420,11 +428,11 @@ try {
     await page.keyboard.press('Enter');
     await wait(300);
     await expect(page.locator('[data-shown]')).toHaveCount(1);
-    await expect(page.getByText(/extra word/)).toHaveCount(0);
+    await expect(page.getByText(/extra word/i)).toHaveCount(0);
     // then every word, longest first: typed, clicked, and swiped
     const sentWords = [];
     for (const [i, w] of words6.entries()) {
-      if ((await status.textContent()).startsWith('solved')) break;
+      if (/^solved/i.test((await status.textContent()) ?? '')) break;
       if (i === 0) {
         await letterButtons.first().focus();
         await page.keyboard.type(w);
@@ -443,7 +451,7 @@ try {
         await shot('wordwheel-playing');
       }
     }
-    await expect(status).toHaveText('solved.. solved with 1 hint.');
+    await expect(status).toHaveText(ci('solved.. solved with 1 hint.'));
     // the extra words were counted, quietly
     const gridWords = (
       await slotItems.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))

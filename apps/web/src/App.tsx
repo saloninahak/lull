@@ -2,7 +2,6 @@ import { Suspense, lazy, useEffect } from 'react';
 import { usePath } from './lib/router';
 import { primeSound } from './lib/sound';
 import { startMusic } from './lib/music';
-import { isSoundOn } from './lib/prefs';
 import { Home } from './screens/home/Home';
 
 // every screen but home (and Motion with them) loads on demand, so home stays light (readme 10)
@@ -36,8 +35,8 @@ export function App() {
   useEffect(() => {
     const prime = () => {
       primeSound();
-      // start music on first gesture if sound is on
-      if (isSoundOn()) startMusic();
+      // the music starts on the first gesture too, if it's switched on
+      startMusic();
     };
     window.addEventListener('pointerdown', prime, { once: true });
     window.addEventListener('keydown', prime, { once: true });

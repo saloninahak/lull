@@ -210,6 +210,21 @@ dialog.sheet[open] {
   }
 }
 
+/* icon strokes that draw in and out (components/icons.tsx) */
+.icon-draw {
+  transition:
+    stroke-dashoffset 0.22s var(--ease-out-soft),
+    opacity 0.18s ease-out,
+    fill 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-draw {
+    transition:
+      opacity 0.12s ease-out,
+      fill 0.12s ease-out;
+  }
+}
+
 /* display serif: tight and warm */
 @utility display {
   font-family: var(--font-serif);

@@ -5,6 +5,9 @@
 
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
+/** a whole-string match that ignores case, since the app uses sentence case */
+const ci = (t) => new RegExp(`^${String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
 
 const base = process.argv[2] ?? 'http://localhost:5173';
 const errors = [];
@@ -41,12 +44,11 @@ try {
 
     /* tic tac toe -------------------------------------------------------- */
     await page.goto(base, { waitUntil: 'networkidle' });
-    // cards open rooms by default. same screen keeps these three on this device.
-    await page.getByRole('button', { name: 'same screen', pressed: false }).click();
+    // the two-player cards open straight onto this device; rooms are one click further
     await page.getByRole('button', { name: 'open tic tac toe' }).click();
     await page.waitForURL('**/play/tictactoe');
     const cell = (r, c) =>
-      page.getByRole('button', { name: new RegExp(`^row ${r}, column ${c},`) });
+      page.getByRole('button', { name: new RegExp(`^row ${r}, column ${c},`, "i") });
     await expect(status).toHaveText("x's turn");
     await cell(1, 1).click();
     await cell(2, 1).click();
@@ -57,7 +59,7 @@ try {
     await wait(400);
     await shot('ttt-mid');
     await cell(1, 3).click();
-    await expect(status).toHaveText('x wins. good game.');
+    await expect(status).toHaveText(ci('x wins. good game.'));
     await wait(1300);
     await shot('ttt-win');
     await page.getByRole('button', { name: 'undo' }).click();
@@ -70,9 +72,9 @@ try {
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
-    await expect(cell(2, 2)).toHaveAccessibleName('row 2, column 2, x');
+    await expect(cell(2, 2)).toHaveAccessibleName(ci('row 2, column 2, x'));
     await page.getByRole('button', { name: '5×5' }).click();
-    await expect(page.getByRole('button', { name: /^row 5, column 5,/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^row 5, column 5,/i })).toBeVisible();
     await wait(600);
     await shot('ttt-five');
 
@@ -80,7 +82,7 @@ try {
     await page.getByRole('button', { name: 'home' }).click();
     await page.getByRole('button', { name: 'open squares' }).click();
     await page.waitForURL('**/play/dots');
-    const edge = (where) => page.getByRole('button', { name: new RegExp(`^line, ${where},`) });
+    const edge = (where) => page.getByRole('button', { name: new RegExp(`^line, ${where},`, "i") });
     await edge('row 1, dots 1 to 2').click();
     await edge('row 2, dots 1 to 2').click();
     await edge('column 1, dots 1 to 2').click();
@@ -89,10 +91,10 @@ try {
     await wait(500);
     await shot('dots-three-sides');
     await edge('column 2, dots 1 to 2').click();
-    await expect(status).toHaveText('b goes again');
+    await expect(status).toHaveText(ci('b goes again'));
     await wait(900);
     await shot('dots-box');
-    await page.getByRole('button', { name: '4', exact: true }).click();
+    await page.getByRole('button', { name: /^4$/i }).click();
     await expect(page.getByRole('list', { name: 'players' }).getByRole('listitem')).toHaveCount(4);
     await wait(500);
     await shot('dots-four');
@@ -101,16 +103,16 @@ try {
     await page.getByRole('button', { name: 'home' }).click();
     await page.getByRole('button', { name: "open nine men's morris" }).click();
     await page.waitForURL('**/play/morris');
-    const point = (spot) => page.getByRole('button', { name: new RegExp(`^${spot},`) });
-    await expect(status).toHaveText('a, place a piece');
+    const point = (spot) => page.getByRole('button', { name: new RegExp(`^${spot},`, "i") });
+    await expect(status).toHaveText(ci('a, place a piece'));
     for (const spot of ['a7', 'a4', 'd7', 'b6', 'g7']) await point(spot).click();
-    await expect(status).toHaveText('a, remove one');
+    await expect(status).toHaveText(ci('a, remove one'));
     await wait(900);
     await shot('morris-mill');
     await point('d7').click(); // own piece: not removable
-    await expect(status).toHaveText('a, remove one');
+    await expect(status).toHaveText(ci('a, remove one'));
     await point('a4').click();
-    await expect(status).toHaveText('b, place a piece');
+    await expect(status).toHaveText(ci('b, place a piece'));
     await wait(500);
     await shot('morris-removed');
 
@@ -120,7 +122,7 @@ try {
     await page.waitForURL('**/play/sim');
     await expect(status).toHaveText("a's turn");
     const line = (p, q) => page.getByRole('button', { name: `line from ${p} to ${q}, open` });
-    const dot = (p) => page.getByRole('button', { name: `dot ${p}`, exact: true });
+    const dot = (p) => page.getByRole('button', { name: new RegExp(`^dot ${p}$`, 'i') });
     await line(1, 2).click();
     await expect(status).toHaveText("b's turn");
     // a drawn line can't be drawn again
@@ -147,7 +149,7 @@ try {
     await shot('sim-playing');
     await dot(1).click();
     await dot(3).click();
-    await expect(status).toHaveText('b wins. a made a triangle.');
+    await expect(status).toHaveText(ci('b wins. a made a triangle.'));
     await wait(1100);
     await shot('sim-end');
 

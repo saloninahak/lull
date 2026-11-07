@@ -1,9 +1,9 @@
 import { copy } from '../copy';
-import { setSound, setTheme, useSound, useTheme } from '../lib/prefs';
+import { startMusic, stopMusic } from '../lib/music';
+import { setMusic, setSfx, setTheme, useMusic, useSfx, useTheme } from '../lib/prefs';
 import { play, primeSound } from '../lib/sound';
-import { toggleMusic } from '../lib/music';
 import { GhostIconButton } from './GhostIconButton';
-import { MoonIcon, SpeakerIcon, SunIcon } from './icons';
+import { MoonIcon, MusicIcon, SpeakerIcon, SunIcon } from './icons';
 
 export function ThemeToggle() {
   const theme = useTheme();
@@ -11,6 +11,7 @@ export function ThemeToggle() {
   return (
     <GhostIconButton
       label={copy.controls.darkTheme}
+      title={copy.controls.darkTheme}
       aria-pressed={dark}
       onClick={() => setTheme(dark ? 'light' : 'dark')}
     >
@@ -19,32 +20,57 @@ export function ThemeToggle() {
   );
 }
 
-export function SoundToggle() {
-  const on = useSound();
+/** the background music. on and off fade, never cut. */
+export function MusicToggle() {
+  const on = useMusic();
   const toggle = () => {
     const next = !on;
-    setSound(next);
-    primeSound();
+    setMusic(next);
+    if (next) startMusic();
+    else stopMusic();
+  };
+  return (
+    <GhostIconButton
+      label={copy.controls.music}
+      title={on ? copy.controls.musicOff : copy.controls.musicOn}
+      aria-pressed={on}
+      onClick={toggle}
+    >
+      <MusicIcon on={on} />
+    </GhostIconButton>
+  );
+}
+
+/** the small sounds of play. turning them on plays one, so you hear the choice. */
+export function SfxToggle() {
+  const on = useSfx();
+  const toggle = () => {
+    const next = !on;
+    setSfx(next);
     if (next) {
+      primeSound();
       play('turn');
-      toggleMusic(true);
-    } else {
-      toggleMusic(false);
     }
   };
   return (
-    <GhostIconButton label={copy.controls.sound} aria-pressed={on} onClick={toggle}>
+    <GhostIconButton
+      label={copy.controls.sfx}
+      title={on ? copy.controls.sfxOff : copy.controls.sfxOn}
+      aria-pressed={on}
+      onClick={toggle}
+    >
       <SpeakerIcon on={on} />
     </GhostIconButton>
   );
 }
 
-/** the two small circles that sit top-right on every screen */
+/** the small circles that sit top-right on every screen */
 export function Controls() {
   return (
     <div role="group" aria-label={copy.controls.label} className="flex items-center gap-0.5">
       <ThemeToggle />
-      <SoundToggle />
+      <MusicToggle />
+      <SfxToggle />
     </div>
   );
 }

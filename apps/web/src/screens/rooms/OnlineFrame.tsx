@@ -172,7 +172,8 @@ export function OnlineFrame({
         <StatusLine big text={result} sub={copy.play.goodGame} />
       ) : status.over && status.draw ? (
         <StatusLine big text={copy.play.draw} sub={copy.play.fairEnough} />
-      ) : status.over ? (
+      ) : status.over && !line ? (
+        // over with no winner and no draw, and the game has no ending line of its own
         <StatusLine big text={copy.play.gameOver} sub={copy.play.goodGame} />
       ) : typeof playingLine === 'string' ? (
         <StatusLine text={playingLine} />

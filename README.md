@@ -1,8 +1,10 @@
-# Lull
+# Lulll
 
-A quiet little place to kill time with friends.
+The games we used to play on the back of notebooks, for playing with friends online.
 
-No accounts, no ads, no leaderboards, no tracking. Pick a game, start a room, send the four-letter code to whoever you like, and play. A few old paper-and-pencil games, a few good people.
+**Play it:** [lulll.vercel.app](https://lulll.vercel.app)
+
+No accounts, no ads, no leaderboards, no tracking. Pick a game, start a room, send the four-letter code to whoever you like, and play. Tic tac toe, bingo, name place animal thing, the lot.
 
 ## What's in it
 
@@ -15,6 +17,8 @@ Nineteen small games. Some you can open and play straight away, some need other 
 | | Word chain, Rock paper scissors |
 | | Name place animal thing |
 | | Consequences, One-word story |
+
+You can drag the cards into any order, or pin your favourites to the top. It stays that way on your device.
 
 Every game can also be played in a room, each person on their own device. Up to eight people per room, and anyone past a game's player limit takes turns watching.
 
@@ -66,7 +70,7 @@ packages/
 
 The rules live in one package that both the browser and the server use. The server is the only place a move is judged; the browser just draws what it's told. That's also why the solo and same-screen modes work with no server at all.
 
-Boards are inline SVG. Sound and the background music are made with the Web Audio API, so there are no audio files. There's a toggle in the corner if you'd rather have quiet.
+Boards are inline SVG. The sound effects and the background music (a tanpura drone, a slow flute and a little santoor) are made live with the Web Audio API, so there are no audio files. Each has its own switch in the corner.
 
 ## Putting it online
 

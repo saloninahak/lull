@@ -1,5 +1,4 @@
-import type { SVGProps } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import type { CSSProperties, SVGProps } from 'react';
 
 /**
  * hand-drawn line icons. one stroke weight, round caps, sized by the parent
@@ -46,64 +45,66 @@ export function MoonIcon(props: IconProps) {
 }
 
 /**
- * animated speaker icon. `on` drives the animation:
- * — on:  sound waves draw in with a stagger, speaker body brightens
- * — off: waves fade + shrink, X strokes draw in, speaker dims
- * reduced-motion: instant opacity swap, no path drawing.
+ * a stroke that draws itself in when shown and wipes away when hidden.
+ * plain css (see .icon-draw in index.css), so the home page stays light.
+ * reduced motion keeps only the fade.
  */
-export function SpeakerIcon({ on, ...props }: IconProps & { on: boolean }) {
-  const reduced = useReducedMotion();
-  const dur = reduced ? 0 : 0.2;
-  const ease = [0.25, 0.1, 0.25, 1] as const;
+function drawn(shown: boolean, delayMs = 0): { pathLength: number; className: string; style: CSSProperties } {
+  return {
+    pathLength: 1,
+    className: 'icon-draw',
+    style: {
+      strokeDasharray: 1,
+      strokeDashoffset: shown ? 0 : 1,
+      opacity: shown ? 1 : 0,
+      transitionDelay: shown ? `${delayMs}ms` : '0ms',
+    },
+  };
+}
 
+/** sound effects: waves draw in when on, a small cross when off */
+export function SpeakerIcon({ on, ...props }: IconProps & { on: boolean }) {
   return (
     <Base {...props}>
-      {/* speaker body — always present, dims when muted */}
-      <motion.path
+      <path
         d="M4 8h2.5L10 5v10l-3.5-3H4z"
-        animate={{ opacity: on ? 1 : 0.5 }}
-        transition={{ duration: dur }}
+        className="icon-draw"
+        style={{ opacity: on ? 1 : 0.55 }}
       />
-
-      {/* inner wave — draws in when on, shrinks when off */}
-      <motion.path
-        d="M13 7.5a3.5 3.5 0 0 1 0 5"
-        animate={{ pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
-        initial={false}
-        transition={{ duration: dur, ease, delay: on ? 0 : 0 }}
-      />
-      {/* outer wave — draws in slightly after inner wave */}
-      <motion.path
-        d="M15 5.5a6.5 6.5 0 0 1 0 9"
-        animate={{ pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
-        initial={false}
-        transition={{ duration: reduced ? dur : 0.26, ease, delay: on ? 0.06 : 0 }}
-      />
-
-      {/* mute X stroke 1 — draws in when off */}
-      <motion.path
-        d="M13.5 8l3 4"
-        animate={{ pathLength: on ? 0 : 1, opacity: on ? 0 : 1 }}
-        initial={false}
-        transition={{ duration: dur, ease }}
-      />
-      {/* mute X stroke 2 — draws in slightly after stroke 1 */}
-      <motion.path
-        d="M16.5 8l-3 4"
-        animate={{ pathLength: on ? 0 : 1, opacity: on ? 0 : 1 }}
-        initial={false}
-        transition={{ duration: dur, ease, delay: on ? 0 : 0.04 }}
-      />
+      <path d="M13 7.5a3.5 3.5 0 0 1 0 5" {...drawn(on)} />
+      <path d="M15 5.5a6.5 6.5 0 0 1 0 9" {...drawn(on, 60)} />
+      <path d="M13.5 8l3 4" {...drawn(!on)} />
+      <path d="M16.5 8l-3 4" {...drawn(!on, 40)} />
     </Base>
   );
 }
 
-/** backwards-compat wrappers used by Footer */
-export function SpeakerOnIcon(props: IconProps) {
-  return <SpeakerIcon on={true} {...props} />;
+/** music: two notes, with a line drawn through them when off */
+export function MusicIcon({ on, ...props }: IconProps & { on: boolean }) {
+  return (
+    <Base {...props}>
+      <g className="icon-draw" style={{ opacity: on ? 1 : 0.55 }}>
+        <path d="M8 14.25V5.25l7.5-1.75v9" />
+        <circle cx="6" cy="14.25" r="2" />
+        <circle cx="13.5" cy="12.5" r="2" />
+      </g>
+      <path d="M3.5 3.5l13 13" {...drawn(!on)} />
+    </Base>
+  );
 }
-export function SpeakerOffIcon(props: IconProps) {
-  return <SpeakerIcon on={false} {...props} />;
+
+/** a small pushpin. filled when pinned. */
+export function PinIcon({ pinned, ...props }: IconProps & { pinned: boolean }) {
+  return (
+    <Base {...props}>
+      <path
+        d="M7.25 3.25h5.5l-.75 4.5 2.75 2.75v1.25h-9.5V10.5L8 7.75z"
+        fill={pinned ? 'currentColor' : 'none'}
+        className="icon-draw"
+      />
+      <path d="M10 11.75v5" />
+    </Base>
+  );
 }
 
 export function ArrowIcon(props: IconProps) {

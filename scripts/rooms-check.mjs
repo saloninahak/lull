@@ -7,6 +7,7 @@
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import {
+
   solveFutoshiki,
   solveSudoku,
   solveWordSearch,
@@ -14,6 +15,13 @@ import {
   swipeWheel,
   wheelWordsFor,
 } from './solvers.mjs';
+/** the same, for part of the text */
+const cic = (t) => new RegExp(String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+
+/** a whole-string match that ignores case, since the app uses sentence case */
+const ci = (t) => new RegExp(`^${String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
 
 const base = process.argv.slice(2).find((a) => a.startsWith('http')) ?? 'http://localhost:5173';
 const only = process.argv.slice(2).filter((a) => !a.startsWith('http'));
@@ -21,7 +29,7 @@ const theme = process.env.THEME === 'dark' ? 'dark' : 'light';
 const errors = [];
 const passed = [];
 const wait = (ms) => new Promise((r) => globalThis.setTimeout(r, ms));
-const RESULT = /you win|wins|share it|a draw/;
+const RESULT = /you win|wins|share it|a draw/i;
 
 async function launch() {
   for (const channel of ['chrome', 'msedge']) {
@@ -85,7 +93,7 @@ async function roomFor(title, ana, ben, options = []) {
   // puzzles open on your own first. from there, a room with friends is one click.
   await ana.page.waitForURL(/\/(new|play\/[a-z0-9]+)(\?|$)/);
   if (ana.page.url().includes('/play/')) {
-    await ana.page.getByRole('button', { name: /^(race friends|play with friends)$/ }).click();
+    await ana.page.getByRole('button', { name: /^(race friends|play with friends)$/i }).click();
     await ana.page.waitForURL('**/new?game=*');
   }
   // from a card, the game is already chosen: no list of other games to pick from
@@ -97,15 +105,15 @@ async function roomFor(title, ana, ben, options = []) {
   await ben.page.goto(`${base}/join`, { waitUntil: 'networkidle' });
   await ben.page.getByLabel('room code').fill(code);
   await ben.page.getByLabel('your name').fill('ben');
-  await ben.page.getByRole('button', { name: 'join', exact: true }).click();
+  await ben.page.getByRole('button', { name: /^join$/i }).click();
   await expect(ana.page.getByText('everyone here? start when ready.')).toBeVisible();
   // games for one can start before anyone joins, so wait until ben is really in the room
   await until(() => ana.room()?.seats.filter((s) => s.connected).length === 2, 'ben to arrive');
   for (const [group, value] of options) {
     await ana.page.getByRole('group', { name: group }).getByRole('button', { name: value }).click();
-    await expect(ben.page.getByText(value, { exact: true })).toBeVisible();
+    await expect(ben.page.getByText(ci(value))).toBeVisible();
   }
-  await ana.page.getByRole('button', { name: 'start', exact: true }).click();
+  await ana.page.getByRole('button', { name: /^start$/i }).click();
   await until(() => ana.view() && ben.view(), 'the game to start');
 }
 
@@ -116,7 +124,7 @@ const settled = (ana, ben, ok) =>
 /** whoever the server says has the turn, once their screen says so too */
 async function mover(pcs) {
   const p = await until(() => pcs.find((x) => x.myTurn()), 'someone to have the turn');
-  await expect(p.page.locator('[aria-live="polite"]').first()).toHaveText(/^your turn|^you, /);
+  await expect(p.page.locator('[aria-live="polite"]').first()).toHaveText(/^your turn|^you, /i);
   return p;
 }
 
@@ -136,10 +144,10 @@ const games = {
     // a move taken back, with the other player's okay
     const first = await mover([ana, ben]);
     const other = first === ana ? ben : ana;
-    await first.page.getByRole('button', { name: /^row 2, column 2, empty/ }).click();
+    await first.page.getByRole('button', { name: /^row 2, column 2, empty/i }).click();
     await settled(ana, ben, (v) => v.board.filter(Boolean).length === 1);
     await first.page.getByRole('button', { name: 'ask to take back your move' }).click();
-    await expect(other.page.getByText(/wants to take that move back\.$/)).toBeVisible();
+    await expect(other.page.getByText(/wants to take that move back\.$/i)).toBeVisible();
     await expect(first.page.getByText('asked to take it back...')).toBeVisible();
     await shot(other, slug, 'takeback');
     await other.page.getByRole('button', { name: 'let them' }).click();
@@ -158,18 +166,19 @@ const games = {
     ].entries()) {
       const p = await mover([ana, ben]);
       await p.page
-        .getByRole('button', { name: new RegExp(`^row ${r}, column ${c}, empty`) })
+        .getByRole('button', { name: new RegExp(`^row ${r}, column ${c}, empty`, "i") })
         .click();
       await settled(ana, ben, (v) => v.board.filter(Boolean).length === n + 1);
     }
     await ended(ana, ben);
     await expect(ana.page.getByText('you win').first()).toBeVisible();
     await shot(ana, slug, 'end');
-    // back from the room goes where ana came from, home. the name form isn't in the way.
-    await ana.page.getByRole('button', { name: 'back', exact: true }).click();
-    await ana.page.waitForURL((u) => new URL(u).pathname === '/');
+    // back from the room goes where ana came from: the tic tac toe screen she
+    // started the room from (or home). the name form isn't in the way.
+    await ana.page.getByRole('button', { name: /^back$/i }).click();
+    await ana.page.waitForURL((u) => ['/', '/play/tictactoe'].includes(new URL(u).pathname));
     // ben opened the join page straight from an address, so back goes home too
-    await ben.page.getByRole('button', { name: 'back', exact: true }).click();
+    await ben.page.getByRole('button', { name: /^back$/i }).click();
     await ben.page.waitForURL((u) => new URL(u).pathname === '/');
   },
 
@@ -182,7 +191,7 @@ const games = {
     ];
     for (const [n, where] of edges.entries()) {
       const p = await mover([ana, ben]);
-      await p.page.getByRole('button', { name: new RegExp(`^line, ${where}, open`) }).click();
+      await p.page.getByRole('button', { name: new RegExp(`^line, ${where}, open`, "i") }).click();
       await settled(ana, ben, (v) => v.edges.filter((e) => e !== null).length === n + 1);
       if (n === 0) {
         // asked to take it back, and the other player keeps it
@@ -193,19 +202,19 @@ const games = {
         await settled(ana, ben, (v) => v.edges.filter((e) => e !== null).length === 1);
       }
     }
-    await expect(ana.page.getByText(/go again|goes again/).first()).toBeVisible();
-    await expect(ben.page.getByText(/go again|goes again/).first()).toBeVisible();
+    await expect(ana.page.getByText(/go again|goes again/i).first()).toBeVisible();
+    await expect(ben.page.getByText(/go again|goes again/i).first()).toBeVisible();
     await shot(ana, slug, 'box');
   },
 
   async "nine men's morris"(ana, ben, slug) {
     for (const [n, spot] of ['a7', 'a4', 'd7', 'b6', 'g7'].entries()) {
       const p = await mover([ana, ben]);
-      await p.page.getByRole('button', { name: new RegExp(`^${spot},`) }).click();
+      await p.page.getByRole('button', { name: new RegExp(`^${spot},`, "i") }).click();
       await settled(ana, ben, (v) => v.board.filter((x) => x !== null).length === n + 1);
     }
-    await expect(ana.page.getByText(/remove one/).first()).toBeVisible();
-    await expect(ben.page.getByText(/remove one/).first()).toBeVisible();
+    await expect(ana.page.getByText(/remove one/i).first()).toBeVisible();
+    await expect(ben.page.getByText(/remove one/i).first()).toBeVisible();
     await shot(ana, slug, 'mill');
   },
 
@@ -215,7 +224,7 @@ const games = {
     for (let turn = 0; turn < 25; turn++) {
       const p = turn % 2 === 0 ? ana : ben;
       await expect(
-        p.page.getByText(new RegExp(`your turn|${RESULT.source}`)).first(),
+        p.page.getByText(new RegExp(`your turn|${RESULT.source}`, "i")).first(),
       ).toBeVisible();
       if (await p.page.getByText(RESULT).count()) break;
       await p.page
@@ -232,7 +241,7 @@ const games = {
     for (let i = 0; i < 7; i++) {
       const p = await mover([ana, ben]);
       const col = p === ana ? 1 : 2;
-      await p.page.getByRole('button', { name: new RegExp(`^column ${col}$`) }).click();
+      await p.page.getByRole('button', { name: new RegExp(`^column ${col}$`, "i") }).click();
       await settled(ana, ben, (v) => v.moves === i + 1);
       if (i === 4) {
         await wait(500);
@@ -259,7 +268,7 @@ const games = {
       });
       await ana.page.getByRole('button', { name: 'rock' }).click();
       // nothing shows until both are in
-      await expect(ben.page.getByText(/ready$/).first()).toBeVisible();
+      await expect(ben.page.getByText(/ready$/i).first()).toBeVisible();
       if (ben.view().throws[anaId] !== 'hidden') throw new Error("rps: ben saw ana's throw early");
       if (round === 1) await shot(ana, slug, 'thrown');
       await ben.page.getByRole('button', { name: 'scissors' }).click();
@@ -281,7 +290,7 @@ const games = {
     await ana.page.locator(`[data-cell="${empty[0]}"]`).click();
     await ana.page.keyboard.press(String((solution[empty[0]] % 9) + 1));
     await until(() => ana.view().grid[empty[0]] !== 0, 'the wrong digit to land');
-    await ana.page.getByRole('button', { name: 'undo', exact: true }).click();
+    await ana.page.getByRole('button', { name: /^undo$/i }).click();
     await until(() => ana.view().grid[empty[0]] === 0, 'undo to clear the cell');
     // no hints in a race: the answer isn't on anyone's pc
     await expect(ana.page.getByRole('button', { name: 'hint' })).toHaveCount(0);
@@ -367,15 +376,15 @@ const games = {
     await expect(ben.page.getByText('your turn. pick a letter.').first()).toBeVisible();
     if (JSON.stringify(ben.view()).includes('cake'))
       throw new Error('hangman: ben received the word');
-    await ben.page.getByRole('button', { name: 'z', exact: true }).click();
+    await ben.page.getByRole('button', { name: /^z$/i }).click();
     await expect(ben.page.getByRole('button', { name: 'z, not in the word' })).toBeVisible();
-    await ben.page.getByRole('button', { name: 'c', exact: true }).click();
+    await ben.page.getByRole('button', { name: /^c$/i }).click();
     await ben.page.keyboard.press('a');
     await expect(ana.page.getByRole('button', { name: 'a, in the word' })).toBeVisible();
     await ben.page.keyboard.press('k');
     await shot(ben, slug, 'guessing');
     await ben.page.keyboard.press('e');
-    await expect(ana.page.getByText(/ben got it/).first()).toBeVisible();
+    await expect(ana.page.getByText(/ben got it/i).first()).toBeVisible();
     // round 2: ben lets the app pick, ana guesses through the alphabet
     await expect(ben.page.getByRole('button', { name: 'pick one for me' })).toBeVisible({
       timeout: 6000,
@@ -441,7 +450,7 @@ const games = {
       }
       await guesser.page.getByPlaceholder('your guess').fill(word.toUpperCase());
       await guesser.page.keyboard.press('Enter');
-      await expect(drawer.page.getByText(/got it\. the word was/).first()).toBeVisible();
+      await expect(drawer.page.getByText(/got it\. the word was/i).first()).toBeVisible();
     }
     await ended(ana, ben);
   },
@@ -457,7 +466,7 @@ const games = {
       .first()
       .click();
     await expect(ana.page.getByText('who said it first?')).toBeVisible();
-    await expect(ben.page.getByText(/ana is drawing\. say it out loud\./).first()).toBeVisible();
+    await expect(ben.page.getByText(/ana is drawing\. say it out loud\./i).first()).toBeVisible();
     await expect(ben.page.getByPlaceholder('your guess')).toHaveCount(0);
     const b = await ana.page.locator('[data-canvas]').boundingBox();
     await ana.page.mouse.move(b.x + b.width * 0.3, b.y + b.height * 0.7);
@@ -467,8 +476,8 @@ const games = {
     await ana.page.mouse.up();
     await until(() => ben.view().strokes.length === 1, 'the stroke on the other pc');
     await shot(ana, slug, 'drawing');
-    await ana.page.getByRole('button', { name: 'ben', exact: true }).click();
-    await expect(ben.page.getByText(/you got it\. the word was/).first()).toBeVisible();
+    await ana.page.getByRole('button', { name: /^ben$/i }).click();
+    await expect(ben.page.getByText(/you got it\. the word was/i).first()).toBeVisible();
     // ben draws, nobody gets it
     await expect(ben.page.getByRole('group', { name: 'pick a word to draw' })).toBeVisible({
       timeout: 6000,
@@ -479,7 +488,7 @@ const games = {
       .last()
       .click();
     await ben.page.getByRole('button', { name: 'nobody' }).click();
-    await expect(ana.page.getByText(/nobody got it\./).first()).toBeVisible();
+    await expect(ana.page.getByText(/nobody got it\./i).first()).toBeVisible();
     await ended(ana, ben);
   },
 
@@ -500,9 +509,9 @@ const games = {
       if (how === 'line') {
         await pc.page.getByRole('button', { name: `line from ${p} to ${q}, open` }).click();
       } else {
-        await pc.page.getByRole('button', { name: `dot ${p}`, exact: true }).click();
+        await pc.page.getByRole('button', { name: new RegExp(`^dot ${p}$`, 'i') }).click();
         await expect(pc.page.getByRole('button', { name: `dot ${p}, picked` })).toBeVisible();
-        await pc.page.getByRole('button', { name: `dot ${q}`, exact: true }).click();
+        await pc.page.getByRole('button', { name: new RegExp(`^dot ${q}$`, 'i') }).click();
       }
       await settled(ana, ben, (v) => v.edges.filter((e) => e !== null).length === n + 1);
       if (n === 1) {
@@ -510,8 +519,8 @@ const games = {
         await other.page.getByRole('button', { name: 'ask to take back your move' }).click();
         await first.page.getByRole('button', { name: 'let them' }).click();
         await settled(ana, ben, (v) => v.edges.filter((e) => e !== null).length === 1);
-        await other.page.getByRole('button', { name: 'dot 4', exact: true }).click();
-        await other.page.getByRole('button', { name: 'dot 5', exact: true }).click();
+        await other.page.getByRole('button', { name: /^dot 4$/i }).click();
+        await other.page.getByRole('button', { name: /^dot 5$/i }).click();
         await settled(ana, ben, (v) => v.edges.filter((e) => e !== null).length === 2);
         await wait(400);
         await shot(first, slug, 'playing');
@@ -566,7 +575,7 @@ const games = {
     await ana.page.locator(`[data-cell="${empty[0]}"]`).click();
     await ana.page.keyboard.press(String((sol[empty[0]] % n) + 1));
     await until(() => ana.view().grid[empty[0]] !== 0, 'the wrong digit');
-    await ana.page.getByRole('button', { name: 'undo', exact: true }).click();
+    await ana.page.getByRole('button', { name: /^undo$/i }).click();
     await until(() => ana.view().grid[empty[0]] === 0, 'undo');
     await expect(ana.page.getByRole('button', { name: 'hint' })).toHaveCount(0);
     for (const [i, c] of empty.entries()) {
@@ -599,36 +608,36 @@ const games = {
       // ana writes all four, ben writes two, one of them the same as ana's
       const anaWords = [`${l}ob`, `${l}ome`, `${l}at`, `${l}all`];
       for (const [i, word] of anaWords.entries()) {
-        await ana.page.getByLabel(fields[i], { exact: true }).fill(word);
+        await ana.page.getByLabel(ci(fields[i])).fill(word);
       }
-      await ben.page.getByLabel('name', { exact: true }).fill(`${l}ob`);
-      await ben.page.getByLabel('animal', { exact: true }).fill(`${l}ee`);
+      await ben.page.getByLabel(ci('name')).fill(`${l}ob`);
+      await ben.page.getByLabel(ci('animal')).fill(`${l}ee`);
       // what ana writes stays on ana's pc until the round is read out
       await until(() => ben.view().filled[anaId] === 4, "ana's count on ben's pc");
       if (ben.view().answers[anaId] !== null) throw new Error("npat: ben saw ana's answers early");
       if (round === 1) await shot(ana, slug, 'writing');
-      await ana.page.getByRole('button', { name: 'stop', exact: true }).click();
+      await ana.page.getByRole('button', { name: /^stop$/i }).click();
       await expect(ben.page.getByText('ana said stop.').first()).toBeVisible();
       // reading out: everyone's answers, with what they score
       await until(() => ben.view().phase === 'check', 'reading out');
       await expect(ben.page.getByRole('table', { name: "this round's answers" })).toBeVisible();
       await expect(
-        ben.page.getByRole('button', { name: new RegExp(`^ana, thing, ${l}all, 10 points`) }),
+        ben.page.getByRole('button', { name: new RegExp(`^ana, thing, ${l}all, 10 points`, "i") }),
       ).toBeVisible();
       await expect(
-        ben.page.getByRole('button', { name: new RegExp(`^ana, name, ${l}ob, 5 points`) }),
+        ben.page.getByRole('button', { name: new RegExp(`^ana, name, ${l}ob, 5 points`, "i") }),
       ).toBeVisible();
       if (round === 1) {
         // with two players, one flag is a majority of the others: it's struck
-        await ben.page.getByRole('button', { name: new RegExp(`^ana, animal, ${l}at`) }).click();
+        await ben.page.getByRole('button', { name: new RegExp(`^ana, animal, ${l}at`, "i") }).click();
         // on ana's own screen she's "you"
         await expect(
-          ana.page.getByRole('button', { name: new RegExp(`^you, animal, ${l}at, struck`) }),
+          ana.page.getByRole('button', { name: new RegExp(`^you, animal, ${l}at, struck`, "i") }),
         ).toBeVisible();
         await shot(ben, slug, 'reading');
       }
       await ana.page.getByRole('button', { name: 'done reading' }).click();
-      await expect(ana.page.getByText(/waiting for the others · 1 of 2 ready/)).toBeVisible();
+      await expect(ana.page.getByText(/waiting for the others · 1 of 2 ready/i)).toBeVisible();
       await ben.page.getByRole('button', { name: 'done reading' }).click();
     }
     await ended(ana, ben);
@@ -665,10 +674,10 @@ const games = {
         ) {
           throw new Error(`consequences: wrong line above at step ${step}`);
         }
-        await expect(ana.page.getByText(`ben wrote ${step - 1}`, { exact: true })).toBeVisible();
+        await expect(ana.page.getByText(ci(`ben wrote ${step - 1}`))).toBeVisible();
       }
       const field = label[ana.view().prompt];
-      await ana.page.getByLabel(field, { exact: true }).fill(`ana wrote ${step}`);
+      await ana.page.getByLabel(ci(field)).fill(`ana wrote ${step}`);
       await ana.page.getByRole('button', { name: 'fold and pass it on' }).click();
       await expect(ana.page.getByText('folded and passed. 1 of 2 done.')).toBeVisible();
       // what ana just wrote, and anything further up the sheet, stays off ben's pc
@@ -685,8 +694,8 @@ const games = {
         await shot(ana, slug, 'passed');
         await shot(ben, slug, 'writing');
       }
-      await ben.page.getByLabel(field, { exact: true }).fill(`ben wrote ${step}`);
-      await ben.page.getByLabel(field, { exact: true }).press('Enter');
+      await ben.page.getByLabel(ci(field)).fill(`ben wrote ${step}`);
+      await ben.page.getByLabel(ci(field)).press('Enter');
     }
     await settled(ana, ben, (v) => v.phase === 'done');
     for (const p of [ana, ben]) {
@@ -696,16 +705,16 @@ const games = {
     const [one, two] = ana.view().players[0] === anaId ? ['ana', 'ben'] : ['ben', 'ana'];
     const first = ana.page.getByRole('list', { name: 'story 1 of 2' });
     await expect(first.getByRole('listitem')).toHaveCount(5);
-    await expect(first).toContainText(`${one} wrote 0`);
-    await expect(first).toContainText(`met ${two} wrote 1`);
-    await expect(first).toContainText(`then ${two} wrote 3`);
+    await expect(first).toContainText(cic(`${one} wrote 0`));
+    await expect(first).toContainText(cic(`met ${two} wrote 1`));
+    await expect(first).toContainText(cic(`then ${two} wrote 3`));
     await expect(ana.page.getByRole('button', { name: 'previous' })).toBeDisabled();
     await wait(1200);
     await shot(ana, slug, 'unfolded');
     await ana.page.getByRole('button', { name: 'next story' }).click();
     const second = ana.page.getByRole('list', { name: 'story 2 of 2' });
-    await expect(second).toContainText(`${two} wrote 0`);
-    await expect(second).toContainText(`met ${one} wrote 1`);
+    await expect(second).toContainText(cic(`${two} wrote 0`));
+    await expect(second).toContainText(cic(`met ${one} wrote 1`));
     await expect(ana.page.getByRole('button', { name: 'next story' })).toBeDisabled();
   },
 
@@ -756,11 +765,11 @@ const games = {
       throw new Error('one-word story: the turns did not alternate');
     }
     p = await whose();
-    await p.page.getByRole('button', { name: 'the end', exact: true }).click();
+    await p.page.getByRole('button', { name: /^the end$/i }).click();
     await settled(ana, ben, (v) => v.ended === 'the-end');
     for (const q of [ana, ben]) {
-      await expect(q.page.getByText(/said the end\./).first()).toBeVisible();
-      await expect(q.page.getByLabel('the story so far')).toContainText('the end.');
+      await expect(q.page.getByText(/said the end\./i).first()).toBeVisible();
+      await expect(q.page.getByLabel('the story so far')).toContainText(cic('the end.'));
       await expect(q.page.getByLabel('your word')).toHaveCount(0);
     }
     await wait(600);

@@ -6,6 +6,9 @@
 
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
+/** a whole-string match that ignores case, since the app uses sentence case */
+const ci = (t) => new RegExp(`^${String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
 
 const base = process.argv[2] ?? 'http://localhost:5173';
 const errors = [];
@@ -69,11 +72,11 @@ try {
 
     /* ben joins with the code -------------------------------------------- */
     await ben.page.goto(base, { waitUntil: 'networkidle' });
-    await ben.page.getByRole('button', { name: 'join', exact: true }).click();
+    await ben.page.getByRole('button', { name: /^join( a room)?$/i }).click();
     await ben.page.getByLabel('room code').fill(code.toLowerCase());
     await ben.page.getByLabel('your name').fill('ben');
     await ben.shot('join');
-    await ben.page.getByRole('button', { name: 'join', exact: true }).click();
+    await ben.page.getByRole('button', { name: /^join( a room)?$/i }).click();
     await ben.page.waitForURL(`**/r/${code}`);
     await expect(ben.page.getByText('ana starts the game.')).toBeVisible();
     await expect(ana.page.getByText('everyone here? start when ready.')).toBeVisible();
@@ -81,13 +84,13 @@ try {
     await ana.shot('lobby');
 
     /* play ------------------------------------------------------------------ */
-    await ana.page.getByRole('button', { name: 'start', exact: true }).click();
+    await ana.page.getByRole('button', { name: /^start$/i }).click();
     await expect(ana.page.getByRole('group', { name: 'your card' })).toBeVisible();
     await expect(ben.page.getByRole('group', { name: 'your card' })).toBeVisible();
     await expect(ana.page.locator('[aria-live="polite"]').first()).toHaveText(
-      'your turn. call a number.',
+      ci('your turn. call a number.'),
     );
-    await expect(ben.page.locator('[aria-live="polite"]').first()).toHaveText('ana is thinking');
+    await expect(ben.page.locator('[aria-live="polite"]').first()).toHaveText(ci('ana is thinking'));
 
     // ben can't call on ana's turn: nothing is sent, the number stays open
     const benFirst = ben.page.getByRole('button', { name: /, open$/ }).first();
@@ -115,16 +118,16 @@ try {
     for (let turn = 1; turn < 25; turn++) {
       const p = players[turn % 2];
       // wait until this phone has heard the last call: its turn now, or the game is over
-      const done = /wins|you win|share it|a draw/;
-      await expect(p.page.getByText(new RegExp(`your turn|${done.source}`)).first()).toBeVisible();
+      const done = /wins|you win|share it|a draw/i;
+      await expect(p.page.getByText(new RegExp(`your turn|${done.source}`, "i")).first()).toBeVisible();
       if (await p.page.getByText(done).count()) break;
       await p.page
         .getByRole('button', { name: /, open$/ })
         .first()
         .click();
     }
-    await expect(ana.page.getByText(/wins|you win|share it|a draw/).first()).toBeVisible();
-    await expect(ben.page.getByText(/wins|you win|share it|a draw/).first()).toBeVisible();
+    await expect(ana.page.getByText(/wins|you win|share it|a draw/i).first()).toBeVisible();
+    await expect(ben.page.getByText(/wins|you win|share it|a draw/i).first()).toBeVisible();
     await wait(1300);
     await ana.shot('end-host');
     await ben.shot('end-guest');
@@ -148,7 +151,7 @@ try {
 
     /* again, from the host ---------------------------------------------------- */
     await ana.page.getByRole('button', { name: 'again?' }).click();
-    await expect(ana.page.getByText(/your turn|is thinking/).first()).toBeVisible();
+    await expect(ana.page.getByText(/your turn|is thinking/i).first()).toBeVisible();
     await expect(ben.page.getByRole('group', { name: 'your card' })).toBeVisible();
 
     await ana.context.close();

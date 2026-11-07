@@ -1,4 +1,4 @@
-import { isSoundOn } from './prefs';
+import { isSfxOn } from './prefs';
 
 /**
  * tiny, soft, tactile sounds (readme 3.6): a wooden tick for a piece, a
@@ -96,7 +96,7 @@ const CUES: Record<Cue, Voice[]> = {
  * gesture, so the very first cue after turning sound on is heard.
  */
 export function play(cue: Cue): void {
-  if (!isSoundOn()) return;
+  if (!isSfxOn()) return;
   primeSound();
   const c = audio();
   if (!c || !bus || c.state !== 'running') return;

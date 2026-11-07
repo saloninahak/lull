@@ -104,7 +104,7 @@ export function GameScreen({
           <GhostIconButton label={copy.play.back} onClick={back}>
             <BackIcon />
           </GhostIconButton>
-          <div className="min-w-0 pt-[11px] pr-36">
+          <div className="min-w-0 pt-[11px] pr-48">
             <h1
               ref={heading}
               tabIndex={-1}

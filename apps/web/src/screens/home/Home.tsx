@@ -6,6 +6,8 @@ import { Footer } from '../../components/Footer';
 import { Lines, Sheet } from '../../components/Sheet';
 import { contactEmail } from '../../config';
 import { copy } from '../../copy';
+import { cx } from '../../lib/cx';
+import { setLayout, useLayout, type Layout } from '../../lib/prefs';
 import { isReady } from '../../lib/ready';
 import { wakeRooms } from '../../lib/rooms';
 import { navigate } from '../../lib/router';
@@ -80,10 +82,52 @@ const linkClass =
  * home. a card opens its game: puzzles and two-player games straight away
  * on this device, the rest in a new room. bingo is always a room (readme 7.3).
  */
+const TILES = new Map(games.map((g) => [g.id, g]));
+const DEFAULT_ORDER = games.map((g) => g.id);
+
+/**
+ * the cards in the order this person likes: pinned ones first, then the
+ * rest, each group in their saved order. a game added later lands at the end.
+ */
+function arrange(layout: Layout): { ids: GameId[]; pinned: Set<GameId> } {
+  const known = (id: string): id is GameId => TILES.has(id as GameId);
+  const saved = layout.order.filter(known);
+  const order = [...saved, ...DEFAULT_ORDER.filter((id) => !saved.includes(id))];
+  const pinned = new Set(layout.pins.filter(known));
+  return {
+    ids: [...order.filter((id) => pinned.has(id)), ...order.filter((id) => !pinned.has(id))],
+    pinned,
+  };
+}
+
 export function Home() {
   const [sheet, setSheet] = useState<SheetName | null>(null);
   // the room server may be napping. nudge it awake while people look around.
   useEffect(wakeRooms, []);
+
+  const layout = useLayout();
+  const { ids, pinned } = arrange(layout);
+  const customised = layout.order.length > 0 || layout.pins.length > 0;
+  const [dragging, setDragging] = useState<GameId | null>(null);
+  const [over, setOver] = useState<GameId | null>(null);
+
+  const togglePin = (id: GameId) => {
+    const pins = pinned.has(id) ? [...pinned].filter((p) => p !== id) : [...pinned, id];
+    setLayout({ order: ids, pins });
+  };
+
+  /** drop `id` where `target` is. it joins the target's group: pinned or not. */
+  const move = (id: GameId, target: GameId) => {
+    if (id === target) return;
+    const from = ids.indexOf(id);
+    const rest = ids.filter((x) => x !== id);
+    const at = rest.indexOf(target) + (from < ids.indexOf(target) ? 1 : 0);
+    rest.splice(at, 0, id);
+    const pins = new Set(pinned);
+    if (pinned.has(target)) pins.add(id);
+    else pins.delete(id);
+    setLayout({ order: rest, pins: [...pins] });
+  };
 
   const cardFor = (game: Tile) => {
     const line = copy.games[game.id].line;
@@ -141,21 +185,72 @@ export function Home() {
                 })}
               </ul>
             </nav>
+
+            {/* how to make the grid your own, then a way back */}
+            <div className="mt-6 hidden md:block">
+              {customised ? (
+                <button
+                  type="button"
+                  className={linkClass}
+                  onClick={() => setLayout({ order: [], pins: [] })}
+                >
+                  {copy.layout.reset}
+                </button>
+              ) : (
+                <p className="meta max-w-[22ch]">{copy.layout.hint}</p>
+              )}
+            </div>
           </header>
 
-          <main className="mt-8 md:mt-0">
+          {/* on desktop the grid starts below the settings in the top-right corner */}
+          <main className="mt-8 md:mt-0 md:pt-16">
             <h2 className="sr-only">{copy.gamesLabel}</h2>
-            <ul className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 [&>li]:flex">
-              {games.map((game) => {
+            <ul className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+              {ids.map((id) => {
+                const game = TILES.get(id)!;
                 const card = cardFor(game);
                 return (
-                  <li key={game.id} className="flex w-full">
+                  <li
+                    key={id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDragging(id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      // firefox only starts a drag that carries some data
+                      e.dataTransfer.setData('text/plain', id);
+                    }}
+                    onDragOver={(e) => {
+                      if (!dragging || dragging === id) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (over !== id) setOver(id);
+                    }}
+                    onDragLeave={() => setOver((o) => (o === id ? null : o))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragging) move(dragging, id);
+                      setDragging(null);
+                      setOver(null);
+                    }}
+                    onDragEnd={() => {
+                      setDragging(null);
+                      setOver(null);
+                    }}
+                    className={cx(
+                      'flex rounded-lg transition-[opacity,outline-color] duration-200 ease-soft',
+                      'outline-2 outline-offset-4 outline-transparent',
+                      dragging === id && 'opacity-40',
+                      over === id && 'outline-ink/15',
+                    )}
+                  >
                     <GameCard
-                      title={copy.games[game.id].title}
+                      title={copy.games[id].title}
                       line={card.line}
-                      accent={GAME_ACCENT[game.id]}
+                      accent={GAME_ACCENT[id]}
                       preview={game.preview}
                       onOpen={card.onOpen}
+                      pinned={pinned.has(id)}
+                      onPin={() => togglePin(id)}
                     />
                   </li>
                 );
