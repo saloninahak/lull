@@ -1,0 +1,41 @@
+{
+  "name": "lull",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @lull/web --filter @lull/server dev",
+    "dev:lan": "pnpm --parallel --filter @lull/web --filter @lull/server dev:lan",
+    "dev:web": "pnpm --filter @lull/web dev",
+    "dev:server": "pnpm --filter @lull/server dev",
+    "start": "node apps/server/src/main.ts",
+    "rooms": "pnpm --filter @lull/server start",
+    "host": "pnpm build && pnpm --filter @lull/server host",
+    "build": "pnpm --filter @lull/web build",
+    "preview": "pnpm --filter @lull/web preview",
+    "test": "pnpm -r run --if-present test",
+    "typecheck": "pnpm -r run --if-present typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "phone": "node scripts/phone-check.mjs",
+    "play": "node scripts/play-check.mjs",
+    "play:room": "node scripts/room-check.mjs",
+    "play:rooms": "node scripts/rooms-check.mjs",
+    "play:solo": "node scripts/solo-check.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0"
+  }
+}

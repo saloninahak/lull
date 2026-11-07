@@ -1,0 +1,19 @@
+{
+  "name": "@lull/game-logic",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "pure, tested rules for the four games. no side effects, no dependencies.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@lull/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "the room server: codes, seats, reconnects, and every move checked by the shared rules.",
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "dev:lan": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "host": "node src/host.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@lull/game-logic": "workspace:*",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/ws": "8.18.2",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

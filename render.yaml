@@ -1,0 +1,52 @@
+# the room server on render's free plan (readme 13.8). render reads this
+# file when you create a "blueprint" from the github repo. two services:
+# production follows `main`, uat follows the `uat` branch.
+#
+# free services nap after 15 minutes with nobody playing and take about a
+# minute to wake. the site wakes them as soon as someone opens it.
+#
+# after the first deploy, set ALLOWED_ORIGINS on each service to the site
+# addresses that may use it (render dashboard → service → environment).
+
+services:
+  - type: web
+    name: lull-rooms
+    runtime: node
+    plan: free
+    branch: main
+    rootDir: .
+    buildCommand: npx --yes pnpm@12.15.0 install --frozen-lockfile --filter @lull/server...
+    startCommand: node apps/server/src/main.ts
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: '1'
+      # e.g. https://lull.vercel.app,https://your-domain.com
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: lull-rooms-uat
+    runtime: node
+    plan: free
+    branch: uat
+    rootDir: .
+    buildCommand: npx --yes pnpm@12.15.0 install --frozen-lockfile --filter @lull/server...
+    startCommand: node apps/server/src/main.ts
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: '1'
+      # e.g. https://lull-*.vercel.app (every vercel preview address)
+      - key: ALLOWED_ORIGINS
+        sync: false

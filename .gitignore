@@ -1,0 +1,16 @@
+node_modules
+dist
+.shots
+.tmp-*
+*.log
+.DS_Store
+
+# settings that belong to one machine or one account, never the repo
+.env
+.env.*
+!.env.example
+.vercel
+
+# local tooling, not part of the project
+.kiro/
+.lsres.txt

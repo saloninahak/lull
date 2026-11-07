@@ -1,0 +1,52 @@
+# every push and pull request: typecheck, lint, every test and the build,
+# then two browsers play a real room of tic tac toe through the real server.
+# free on github for public repos, and within the free minutes for private ones.
+name: check
+
+on:
+  push:
+    branches: [main, uat]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: pnpm
+        run: npm install --global pnpm@12.15.0
+      - run: pnpm install --frozen-lockfile
+      - name: typecheck, lint, tests, build
+        run: pnpm check
+
+      # the smoke test (readme 6): start a room, join it, play it to the end
+      - name: start the app and the room server
+        run: |
+          pnpm dev > dev.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5173 > /dev/null && curl -sf http://localhost:1999/api/health > /dev/null && exit 0
+            sleep 1
+          done
+          cat dev.log
+          exit 1
+      - name: two browsers play tic tac toe, then solo puzzles
+        run: |
+          node scripts/rooms-check.mjs http://localhost:5173 "tic tac toe" "word wheel"
+          node scripts/solo-check.mjs http://localhost:5173
+      - name: keep the screenshots if something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shots
+          path: |
+            .shots
+            dev.log
+          retention-days: 7
