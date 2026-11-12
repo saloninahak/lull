@@ -18,8 +18,11 @@ export type Throw = 'rock' | 'paper' | 'scissors';
 export const THROWS: readonly Throw[] = ['rock', 'paper', 'scissors'];
 const BEATS: Record<Throw, Throw> = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
 
-/** how long a round's throws stay on show before the next round */
-export const RPS_REVEAL_MS = 2600;
+/**
+ * how long a round's throws stay on show before the next round. the first
+ * second is the "rock, paper, scissors, shoot" shake on every screen.
+ */
+export const RPS_REVEAL_MS = 3400;
 
 export type RpsOptions = { target?: number };
 

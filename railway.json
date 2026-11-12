@@ -1,9 +1,0 @@
-{
-  "build": {
-    "buildCommand": "npm install -g pnpm@12.15.0 && pnpm install --frozen-lockfile --filter @lull/server..."
-  },
-  "deploy": {
-    "startCommand": "node apps/server/src/main.ts",
-    "healthcheckPath": "/api/health"
-  }
-}

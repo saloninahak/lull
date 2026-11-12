@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { GAME_ACCENT, TAKEBACK_GAMES, type RoomView } from '@lull/game-logic';
+import { GAME_ACCENT, TAKEBACK_GAMES, type RoomView, type Status } from '@lull/game-logic';
 import { PillButton } from '../../components/PillButton';
 import { PlayerRow, type SeatView } from '../../components/PlayerRow';
 import { copy } from '../../copy';
@@ -68,6 +68,11 @@ type FrameProps = RoomGameProps & {
    * turn games use it to ask for a take back instead.
    */
   undo?: { can: boolean; run: () => void };
+  /**
+   * keep the ending under wraps for a moment (no result line, no chime, no
+   * "again?") while the board plays out its own reveal, e.g. the rps shake
+   */
+  hold?: boolean;
   children: ReactNode;
 };
 
@@ -90,10 +95,11 @@ export function OnlineFrame({
   line,
   below,
   undo,
+  hold = false,
   children,
 }: FrameProps) {
   const match = room.match!;
-  const { status } = match;
+  const status: Status = hold && match.status.over ? { over: false } : match.status;
   useGameSounds(status, room.you);
   const nameOf = useNames(room);
   const isHost = room.host === room.you;

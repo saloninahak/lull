@@ -83,7 +83,7 @@ The site is static, and the rooms need one always-running Node process, so they 
 | `VITE_ROOM_URL` | Where your room server lives, e.g. `https://your-rooms.example.com` |
 | `VITE_CONTACT_EMAIL` | Optional. Shows an "email me" link on the home page |
 
-**The rooms** go on anything that runs Node and keeps websockets open (Railway, Render and Fly all work; `render.yaml` and `railway.json` are included). Start it with `node apps/server/src/main.ts` and set:
+**The rooms** go on anything that runs Node and keeps websockets open (deployed on Render; `render.yaml` is included). Start it with `node apps/server/src/main.ts` and set:
 
 | Variable | What it does |
 | --- | --- |

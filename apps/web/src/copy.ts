@@ -373,9 +373,26 @@ export const copy = {
     rock: 'Rock',
     paper: 'Paper',
     scissors: 'Scissors',
-    pick: 'Pick one.',
-    thrown: 'Thrown. Waiting for the others...',
+    pick: 'Pick your hand.',
+    thrown: 'Locked in. Waiting for the others…',
     ready: 'Ready',
+    thinking: 'Thinking',
+    // the chant every screen shakes to, one word a beat, then the throw
+    shout: ['Rock', 'Paper', 'Scissors'] as const,
+    shoot: 'Shoot!',
+    chant: 'Rock, paper, scissors…',
+    // under each choice, so nobody has to remember the rules
+    beatsShort: { rock: 'Beats scissors', paper: 'Beats rock', scissors: 'Beats paper' },
+    // why a round went the way it did
+    beats: {
+      rock: 'Rock crushes scissors',
+      paper: 'Paper covers rock',
+      scissors: 'Scissors cut paper',
+    },
+    same: 'Everyone matched',
+    allThree: 'All three came out',
+    yourPick: (t: string) => `Your pick: ${t}`,
+    pickLabel: (t: string, beats: string) => `${t}. ${beats}`,
     // "you take it", "ana takes it", "you and ana take it"
     takes: (names: readonly string[]) =>
       names.length === 1 && names[0]?.toLowerCase() !== 'you'
