@@ -82,10 +82,26 @@ export default function RpsRoom(props: RoomGameProps) {
   const { onKeyDown, itemProps } = useRoving(POINTS);
 
   const playing = view.players.includes(room.you);
-  // your own throw always comes through; only the others' are hidden
-  const mine = playing ? ((view.throws[room.you] ?? null) as Throw | null) : null;
   const last = view.last;
   const revealing = view.phase === 'reveal' && last !== null;
+
+  // a tap locks in on this screen straight away, so on a slow line it never
+  // feels ignored and can't be sent twice. it's only for this round, and it
+  // lets go if the server says no or the connection drops.
+  type Pending = { round: number; choice: Throw; refusal: number; connection: string };
+  const [pending, setPending] = useState<Pending | null>(null);
+  const refusals = props.refusal?.n ?? 0;
+  const stillPending =
+    pending !== null &&
+    playing &&
+    !revealing &&
+    pending.round === view.round &&
+    pending.refusal === refusals &&
+    pending.connection === props.connection;
+
+  // your own throw always comes through; only the others' are hidden
+  const confirmed = playing ? ((view.throws[room.you] ?? null) as Throw | null) : null;
+  const mine = confirmed ?? (stillPending ? pending.choice : null);
   const beat = useBeat(revealing, view.revealUntil - RPS_REVEAL_MS, offset, still);
   const opened = beat >= SHOOT;
   const settled = beat >= SETTLED;
@@ -117,11 +133,14 @@ export default function RpsRoom(props: RoomGameProps) {
     else if (wonRound && !final) play('chime');
   }, [beat, wonRound, final]);
 
+  const round = view.round;
+  const connection = props.connection;
   const onThrow = (t: Throw, el?: HTMLElement) => {
     if (!picking) {
       if (el) nudge(el);
       return;
     }
+    setPending({ round, choice: t, refusal: refusals, connection });
     play('pop');
     send({ t: 'move', move: { type: 'throw', choice: t } });
   };
@@ -136,12 +155,13 @@ export default function RpsRoom(props: RoomGameProps) {
       const choice = THROWS[['1', '2', '3'].indexOf(e.key)];
       if (!choice) return;
       e.preventDefault();
+      setPending({ round, choice, refusal: refusals, connection });
       play('pop');
       send({ t: 'move', move: { type: 'throw', choice } });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [picking, send]);
+  }, [picking, send, round, refusals, connection]);
 
   const line = revealing
     ? !settled
@@ -185,7 +205,7 @@ export default function RpsRoom(props: RoomGameProps) {
         <p className="meta">{`${copy.rps.round(view.round)} · ${copy.rps.firstTo(view.target)}`}</p>
       }
       caption={(id) => {
-        const ready = !revealing && view.throws[id] != null;
+        const ready = !revealing && (id === room.you ? mine !== null : view.throws[id] != null);
         return ready ? `${scoreOf(id)} · ${copy.rps.ready}` : String(scoreOf(id));
       }}
       captionLabel={(id, name) => copy.room.score(name, scoreOf(id))}
@@ -250,7 +270,7 @@ export default function RpsRoom(props: RoomGameProps) {
             <ul className="flex flex-wrap items-end justify-center gap-x-6 gap-y-5 sm:gap-x-10">
               {order.map((id, i) => {
                 const shown = revealing && opened && last ? last.throws[id] : undefined;
-                const ready = view.throws[id] != null;
+                const ready = id === room.you ? mine !== null : view.throws[id] != null;
                 const mode: Mode = revealing
                   ? opened
                     ? 'shown'
