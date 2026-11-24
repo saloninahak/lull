@@ -18,7 +18,6 @@ export const ROOM_SCREENS: Partial<Record<GameId, ComponentType<RoomGameProps>>>
   zip: lazy(() => import('../screens/zip/ZipRoom')),
   wordchain: lazy(() => import('../screens/wordchain/WordChainRoom')),
   hangman: lazy(() => import('../screens/hangman/HangmanRoom')),
-  skribbl: lazy(() => import('../screens/skribbl/SkribblRoom')),
   pictionary: lazy(() => import('../screens/pictionary/PictionaryRoom')),
   npat: lazy(() => import('../screens/npat/NpatRoom')),
   sim: lazy(() => import('../screens/sim/SimRoom')),

@@ -4,6 +4,8 @@
  * no exclamation marks, no emoji, no "oops".
  */
 
+import type { GameId } from '@lull/game-logic';
+
 /** "a", "a and b", "a, b and c" */
 function listNames(names: readonly string[]): string {
   if (names.length <= 1) return names[0] ?? '';
@@ -60,8 +62,7 @@ export const copy = {
     morris: { title: "Nine men's morris", line: 'Line up three, take one of theirs.' },
     bingo: { title: 'Bingo', line: 'Your own card. First to five lines.' },
     connect4: { title: 'Connect four', line: 'Get four in a row before they do.' },
-    skribbl: { title: 'Skribbl', line: 'Bad drawings, wild guesses.' },
-    pictionary: { title: 'Pictionary', line: 'One person draws, everyone yells.' },
+    pictionary: { title: 'Pictionary', line: 'Bad drawings, wild guesses.' },
     wordchain: { title: 'Word chain', line: 'Start where the last word ended.' },
     hangman: { title: 'Hangman', line: 'Guess it before he’s drawn.' },
     rps: { title: 'Rock paper scissors', line: 'Settle it the old way.' },
@@ -144,6 +145,8 @@ export const copy = {
   ],
 
   changelog: [
+    'Hosts can switch games from the lobby, so the same group keeps playing with the same code.',
+    'Whose turn it is, and what to do next, is now big and clear. Skribbl is gone: it was Pictionary.',
     'Softer background music: a tanpura drone, a slow flute, and a little santoor.',
     'Music and sound effects can be switched on and off separately.',
     'Drag the cards into your own order, and pin your favourites to the top.',
@@ -195,18 +198,12 @@ export const copy = {
       'Four of yours in a row wins: across, down or diagonal.',
       'A full frame with no four is a draw.',
     ],
-    skribbl: [
-      'Each turn one person picks a word from three and draws it.',
-      'Everyone else types guesses. The sooner you get it, the more you score.',
-      'The drawer scores for everyone who gets it.',
-      'A letter shows at half time, and another near the end.',
-      'Everyone draws once a round.',
-    ],
     pictionary: [
       'Each turn one person picks a word from three and draws it.',
       'Everyone else guesses out loud, in the room.',
       'The drawer taps whoever said it first, and you both score a point.',
       'A letter shows at half time, and another near the end.',
+      'Everyone draws once a round.',
     ],
     wordchain: [
       'Say a word that starts with the last letter of the one before.',
@@ -343,7 +340,11 @@ export const copy = {
     accept: 'Accept',
     decline: 'Keep playing',
     counts: (inHand: number, onBoard: number, lost: number) =>
-      [inHand > 0 ? `In hand ${inHand}` : null, `On board ${onBoard}`, lost > 0 ? `Lost ${lost}` : null]
+      [
+        inHand > 0 ? `In hand ${inHand}` : null,
+        `On board ${onBoard}`,
+        lost > 0 ? `Lost ${lost}` : null,
+      ]
         .filter(Boolean)
         .join(' · '),
     countsLabel: (name: string, inHand: number, onBoard: number, lost: number) =>
@@ -665,9 +666,6 @@ export const copy = {
     choosing: (name: string) => `${name} is picking a word`,
     drawing: (name: string) => `${name} is drawing`,
     yourWord: (w: string) => `Draw: ${w}`,
-    youGotIt: (w: string) => `You got it: ${w}`,
-    guessPlaceholder: 'Your guess',
-    guess: 'Guess',
     undo: 'Undo line',
     clear: 'Clear',
     pen: 'Pen',
@@ -676,7 +674,7 @@ export const copy = {
       const known = shown.filter(Boolean).length;
       return known ? `${n} letters: ${shown.map((ch) => ch ?? 'blank').join(' ')}` : `${n} letters`;
     },
-    whoSaid: 'Who said it first?',
+    whoSaid: 'Who said it first? Tap their name.',
     nobody: 'Nobody',
     wasWord: (w: string) => `The word was ${w}`,
     gotIt: (names: readonly string[]) =>
@@ -686,8 +684,6 @@ export const copy = {
     roundOf: (n: number, of: number) => `Round ${n} of ${of}`,
     drawer: 'Drawing',
     got: 'Got it',
-    waitOthers: 'You got it. Waiting for the others...',
-    wrongGuesses: 'Guesses so far',
   },
 
   /* rooms ------------------------------------------------------------------ */
@@ -722,8 +718,19 @@ export const copy = {
     ready: 'Everyone here? Start when ready.',
     begin: 'Start',
     hostStarts: (name: string) => `${name} starts the game.`,
-    hostNext: (name: string) => `Waiting for ${name} to start the next round.`,
+    hostNext: (name: string) => `${name} will start the next round, or pick another game.`,
     backToLobby: 'Back to lobby',
+    pickAnother: 'Pick another game',
+    turnTitle: 'Your turn',
+    /** what to do on your turn, for games that use the default "your turn" line */
+    yourMove: {
+      tictactoe: 'Tap an empty square.',
+      dots: 'Tap a line between two dots.',
+      connect4: 'Tap a column to drop a disc.',
+      sim: 'Tap a line between two dots.',
+    } as Partial<Record<GameId, string>>,
+    changeGame: 'Change game',
+    gameChanged: (name: string, game: string) => `${name} switched to ${game}.`,
     yourTurn: 'Your turn',
     goAgain: 'You go again',
     askTakeBack: 'Ask to take back your move',

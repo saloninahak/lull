@@ -24,7 +24,6 @@ export const ONLINE_GAMES: readonly GameId[] = [
   'morris',
   'bingo',
   'connect4',
-  'skribbl',
   'pictionary',
   'wordchain',
   'hangman',

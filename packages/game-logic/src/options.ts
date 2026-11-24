@@ -16,10 +16,6 @@ export const GAME_OPTIONS: Record<GameId, readonly OptionSpec[]> = {
   morris: [],
   bingo: [],
   connect4: [],
-  skribbl: [
-    { key: 'rounds', values: [1, 2, 3], initial: 2 },
-    { key: 'seconds', values: [60, 80, 100], initial: 80 },
-  ],
   pictionary: [
     { key: 'rounds', values: [1, 2, 3], initial: 1 },
     { key: 'seconds', values: [45, 60, 90], initial: 60 },

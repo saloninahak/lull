@@ -6,6 +6,7 @@ import {
   GAME_OPTIONS,
   gameOf,
   normalizeCode,
+  type GameId,
   type RoomView,
 } from '@lull/game-logic';
 import { Card } from '../../components/Card';
@@ -16,7 +17,7 @@ import { TextField } from '../../components/TextField';
 import { copy } from '../../copy';
 import { savedName, saveName } from '../../lib/identity';
 import { nudge } from '../../lib/nudge';
-import { ROOM_SCREENS } from '../../lib/ready';
+import { READY_ONLINE, ROOM_SCREENS } from '../../lib/ready';
 import { navigate } from '../../lib/router';
 import { useRoom, type Connection, type Send } from '../../lib/rooms';
 import { GameScreen } from '../game/GameScreen';
@@ -31,13 +32,37 @@ export default function RoomScreen({ code: raw }: { code: string }) {
   const [name, setName] = useState<string | null>(() => cleanName(savedName()));
   const { room, connection, refusal, offset, send } = useRoom(code ?? '', code ? name : null);
 
-  if (!code) return <Quiet title={copy.room.joinTitle} line={copy.room.badCode} action={{ label: copy.room.tryCode, onClick: () => navigate('/join') }} />;
+  // remember that a game has been played here. the lobby is a separate screen that
+  // mounts fresh each time, so it can't notice this on its own.
+  const [hadMatch, setHadMatch] = useState(false);
+  if (room?.match && !hadMatch) setHadMatch(true);
+
+  if (!code)
+    return (
+      <Quiet
+        title={copy.room.joinTitle}
+        line={copy.room.badCode}
+        action={{ label: copy.room.tryCode, onClick: () => navigate('/join') }}
+      />
+    );
   if (!name) return <NameStep code={code} onName={setName} />;
   if (connection === 'lost') {
-    return <Quiet title={copy.room.roomLabel(code)} line={copy.room.lostConnection} action={{ label: copy.room.tryAgain, onClick: () => window.location.reload() }} />;
+    return (
+      <Quiet
+        title={copy.room.roomLabel(code)}
+        line={copy.room.lostConnection}
+        action={{ label: copy.room.tryAgain, onClick: () => window.location.reload() }}
+      />
+    );
   }
   if (connection === 'gone') {
-    return <Quiet title={copy.room.roomLabel(code)} line={copy.room.gone(code)} action={{ label: copy.room.tryCode, onClick: () => navigate('/join') }} />;
+    return (
+      <Quiet
+        title={copy.room.roomLabel(code)}
+        line={copy.room.gone(code)}
+        action={{ label: copy.room.tryCode, onClick: () => navigate('/join') }}
+      />
+    );
   }
   if (!room) {
     return <Joining code={code} full={refusal?.error === 'full'} />;
@@ -58,12 +83,22 @@ export default function RoomScreen({ code: raw }: { code: string }) {
       </Suspense>
     );
   }
-  return <Lobby room={room} connection={connection} send={send} />;
+  return <Lobby room={room} connection={connection} send={send} hadMatch={hadMatch} />;
 }
 
 /* the lobby (readme 3.2): one centered surface, the code, the dots, one pill */
 
-function Lobby({ room, connection, send }: { room: RoomView; connection: Connection; send: Send }) {
+function Lobby({
+  room,
+  connection,
+  send,
+  hadMatch,
+}: {
+  room: RoomView;
+  connection: Connection;
+  send: Send;
+  hadMatch: boolean;
+}) {
   const isHost = room.host === room.you;
   const game = gameOf(room.game);
   const present = room.seats.filter((s) => s.connected).length;
@@ -73,9 +108,7 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
   const anyAway = room.seats.some((s) => !s.connected);
 
   // state (not refs) so the lobby can notice what changed since it opened:
-  // a game that ended, and host duties that just came to you
-  const [hadMatch, setHadMatch] = useState(false);
-  if (room.match && !hadMatch) setHadMatch(true);
+  // host duties that just came to you, or a game the host switched
   const returnedFromGame = hadMatch && !room.match && !room.note;
 
   const [prevHost, setPrevHost] = useState(room.host);
@@ -85,6 +118,22 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
     if (room.host === room.you) setBecameHost(true);
   }
 
+  // the host can switch games without anyone leaving. everyone else is told once.
+  const [prevGame, setPrevGame] = useState(room.game);
+  const [switchedTo, setSwitchedTo] = useState<GameId | null>(null);
+  if (prevGame !== room.game) {
+    setPrevGame(room.game);
+    setSwitchedTo(room.host === room.you ? null : room.game);
+  }
+
+  // the game list opens by itself after a game ends, so the host can pick what's next
+  const [picking, setPicking] = useState<boolean | null>(null);
+  const pickerOpen = isHost && (picking ?? returnedFromGame);
+  const pickGame = (id: GameId) => {
+    setPicking(false);
+    if (id !== room.game) send({ t: 'setup', game: id, options: {} });
+  };
+
   const seats = seatViews(room).map((s) => ({
     ...s,
     caption: s.id === room.you ? copy.room.you : s.away ? copy.room.away : s.name,
@@ -92,7 +141,9 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
 
   const line =
     connection === 'reconnecting' || connection === 'lost'
-      ? connection === 'lost' ? copy.room.lost : copy.room.reconnecting
+      ? connection === 'lost'
+        ? copy.room.lost
+        : copy.room.reconnecting
       : !enough
         ? copy.room.waiting
         : present > game.maxPlayers
@@ -112,8 +163,7 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
       subtitle={subtitleFor(room, connection)}
       rules={room.game}
     >
-      <Card className="flex w-full max-w-[380px] flex-col items-center px-8 pt-9 pb-10 text-center">
-
+      <Card className="flex w-full max-w-[440px] flex-col items-center px-8 pt-9 pb-10 text-center">
         {/* banners: one at a time, in priority order */}
         {room.note ? (
           <Notice kind="info">
@@ -125,10 +175,21 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
             <p className="text-sm font-medium text-ink">{copy.room.youAreHost}</p>
             <p className="meta mt-0.5">{copy.room.hostLeft}</p>
           </Notice>
+        ) : switchedTo && !isHost ? (
+          <Notice kind="info">
+            <p className="text-sm font-medium text-ink">
+              {copy.room.gameChanged(hostName, copy.games[switchedTo].title)}
+            </p>
+            <p className="meta mt-0.5">
+              {hostConnected ? copy.room.hostStarts(hostName) : copy.room.hostAway(hostName)}
+            </p>
+          </Notice>
         ) : returnedFromGame && !isHost ? (
           <Notice kind="info">
             <p className="text-sm font-medium text-ink">{copy.room.hostEndedGame}</p>
-            <p className="meta mt-0.5">{hostConnected ? copy.room.hostStarts(hostName) : copy.room.hostAway(hostName)}</p>
+            <p className="meta mt-0.5">
+              {hostConnected ? copy.room.hostStarts(hostName) : copy.room.hostAway(hostName)}
+            </p>
           </Notice>
         ) : returnedFromGame && isHost ? (
           <Notice kind="info">
@@ -152,6 +213,45 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
         <div className="mt-9">
           <PlayerRow seats={seats} compact={seats.length > 4} />
         </div>
+
+        {/* the host can change the game without anyone leaving or sharing a new code */}
+        {isHost ? (
+          <div className="mt-8 flex w-full flex-col items-center">
+            {pickerOpen ? (
+              <>
+                <p className="text-[15px] font-medium text-ink">{copy.room.pickGame}</p>
+                <div
+                  role="group"
+                  aria-label={copy.room.pickGame}
+                  className="mt-3 flex flex-wrap justify-center gap-2"
+                >
+                  {READY_ONLINE.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      aria-pressed={g === room.game}
+                      onClick={() => pickGame(g)}
+                      className={
+                        g === room.game
+                          ? 'inline-flex h-10 items-center gap-2 rounded-pill border border-hairline bg-ink/[0.07] px-4 text-[14px] text-ink'
+                          : 'inline-flex h-10 items-center gap-2 rounded-pill border border-hairline bg-surface px-4 text-[14px] text-muted transition-colors duration-200 hover:text-ink'
+                      }
+                    >
+                      {g === room.game ? (
+                        <span aria-hidden="true" className="size-1.5 rounded-full bg-accent" />
+                      ) : null}
+                      {copy.games[g].title}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <PillButton variant="quiet" onClick={() => setPicking(true)}>
+                {copy.room.changeGame}
+              </PillButton>
+            )}
+          </div>
+        ) : null}
 
         {specs.length > 0 ? (
           <div className="mt-8 flex flex-col items-center gap-2">
@@ -182,7 +282,7 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
           </div>
         ) : null}
 
-        <p className="meta mt-7" aria-live="polite">
+        <p className="mt-7 text-[15px] font-medium text-ink" aria-live="polite">
           {line}
         </p>
         {isHost ? (
@@ -202,7 +302,9 @@ function Lobby({ room, connection, send }: { room: RoomView; connection: Connect
 /** a soft inline notice — info (slightly tinted) or muted (barely there) */
 function Notice({ kind, children }: { kind: 'info' | 'muted'; children: React.ReactNode }) {
   return (
-    <div className={`mb-6 w-full rounded-md px-4 py-3 ${kind === 'info' ? 'bg-paper-soft' : 'bg-paper-soft/60'}`}>
+    <div
+      className={`mb-6 w-full rounded-md px-4 py-3 ${kind === 'info' ? 'bg-paper-soft' : 'bg-paper-soft/60'}`}
+    >
       {children}
     </div>
   );
@@ -243,6 +345,16 @@ function ShareButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
     const url = `${window.location.origin}/r/${code}`;
+    // on a phone the share sheet reaches the group chat in one tap
+    if (typeof navigator.share === 'function' && window.matchMedia('(pointer: coarse)').matches) {
+      try {
+        await navigator.share({ title: copy.name, text: copy.room.shareText(code), url });
+        return;
+      } catch (e) {
+        // closing the sheet is fine. anything else falls back to copying.
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+      }
+    }
     if (await copyText(url)) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
@@ -302,7 +414,9 @@ function Joining({ code, full }: { code: string; full: boolean }) {
   if (full) {
     return (
       <GameScreen title={copy.room.roomLabel(code)} subtitle={copy.room.online}>
-        <p className="meta text-center" aria-live="polite">{copy.room.full}</p>
+        <p className="meta text-center" aria-live="polite">
+          {copy.room.full}
+        </p>
         <p className="meta mt-1 text-center">{copy.room.fullHint}</p>
         <div className="mt-4 flex gap-2">
           <PillButton variant="quiet" onClick={() => window.location.reload()}>
@@ -320,7 +434,15 @@ function Joining({ code, full }: { code: string; full: boolean }) {
   return <Quiet title={copy.room.roomLabel(code)} line={line} />;
 }
 
-function Quiet({ title, line, action }: { title: string; line: string; action?: { label: string; onClick: () => void } }) {
+function Quiet({
+  title,
+  line,
+  action,
+}: {
+  title: string;
+  line: string;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
     <GameScreen title={title} subtitle={copy.room.online}>
       <p className="meta text-center" aria-live="polite">

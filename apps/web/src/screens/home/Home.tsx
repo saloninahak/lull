@@ -25,7 +25,6 @@ import {
   PictionaryPreview,
   RpsPreview,
   SimPreview,
-  SkribblPreview,
   SudokuPreview,
   TicTacToePreview,
   WordChainPreview,
@@ -48,7 +47,6 @@ const games: readonly Tile[] = [
   // bingo cards are private, so it's played in a room, a pc each
   { id: 'bingo', preview: <BingoPreview /> },
   { id: 'connect4', preview: <Connect4Preview />, sameScreen: true },
-  { id: 'skribbl', preview: <SkribblPreview /> },
   { id: 'pictionary', preview: <PictionaryPreview /> },
   { id: 'wordchain', preview: <WordChainPreview /> },
   { id: 'hangman', preview: <HangmanPreview />, solo: true },

@@ -1,7 +1,7 @@
 import { bingo } from './bingo.ts';
 import { connect4 } from './connect4.ts';
 import { consequences } from './consequences.ts';
-import { pictionary, skribbl } from './draw.ts';
+import { pictionary } from './draw.ts';
 import { dots } from './dots.ts';
 import { futoshiki } from './futoshiki.ts';
 import { hangman } from './hangman.ts';
@@ -24,7 +24,6 @@ export const games = {
   morris,
   bingo,
   connect4,
-  skribbl,
   pictionary,
   wordchain,
   hangman,

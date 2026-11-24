@@ -24,7 +24,6 @@ import {
   roundWinners,
   rps,
   RPS_REVEAL_MS,
-  skribbl,
   sudoku,
   validPath,
   wordchain,
@@ -291,75 +290,59 @@ describe('hangman', () => {
   });
 });
 
-/* skribbl and pictionary --------------------------------------------------------- */
+/* pictionary --------------------------------------------------------------------- */
 
-describe('drawing games', () => {
-  const start = (game: typeof skribbl, n = 3) =>
+describe('drawing game', () => {
+  const start = (game: typeof pictionary, n = 3) =>
     game.init(players(n), { seed: 1, now: 0, rounds: 1, seconds: 60 });
   const choose = (s: DrawState, now = 0) =>
-    ok(skribbl.apply(s, { type: 'choose', index: 1 }, drawerOf(s), { now }));
+    ok(pictionary.apply(s, { type: 'choose', index: 1 }, drawerOf(s), { now }));
 
   it('gives only the drawer the word choices and the word', () => {
-    let s = start(skribbl);
-    expect((skribbl.view!(s, a) as DrawView).choices).toHaveLength(3);
-    expect((skribbl.view!(s, b) as DrawView).choices).toBeNull();
-    expect(skribbl.apply(s, { type: 'choose', index: 0 }, b)).toEqual({ error: 'not-drawer' });
+    let s = start(pictionary);
+    expect((pictionary.view!(s, a) as DrawView).choices).toHaveLength(3);
+    expect((pictionary.view!(s, b) as DrawView).choices).toBeNull();
+    expect(pictionary.apply(s, { type: 'choose', index: 0 }, b)).toEqual({ error: 'not-drawer' });
     s = choose(s);
-    expect((skribbl.view!(s, a) as DrawView).word).toBe(s.word);
-    expect((skribbl.view!(s, b) as DrawView).word).toBeNull();
-    expect((skribbl.view!(s, b) as DrawView).hint).toBe(s.word.length);
+    expect((pictionary.view!(s, a) as DrawView).word).toBe(s.word);
+    expect((pictionary.view!(s, b) as DrawView).word).toBeNull();
+    expect((pictionary.view!(s, b) as DrawView).hint).toBe(s.word.length);
   });
 
   it('picks the first word when the drawer takes too long', () => {
-    const s = skribbl.tick!(start(skribbl), CHOOSE_MS);
+    const s = pictionary.tick!(start(pictionary), CHOOSE_MS);
     expect(s.phase).toBe('draw');
-    expect(s.word).toBe(start(skribbl).choices[0]);
+    expect(s.word).toBe(start(pictionary).choices[0]);
   });
 
   it('takes strokes from the drawer only, within the canvas', () => {
-    let s = choose(start(skribbl));
-    s = ok(skribbl.apply(s, { type: 'stroke', w: 1, pts: [0, 0, 10, 10] }, a));
-    s = ok(skribbl.apply(s, { type: 'stroke', w: 1, pts: [20, 20], cont: true }, a));
+    let s = choose(start(pictionary));
+    s = ok(pictionary.apply(s, { type: 'stroke', w: 1, pts: [0, 0, 10, 10] }, a));
+    s = ok(pictionary.apply(s, { type: 'stroke', w: 1, pts: [20, 20], cont: true }, a));
     expect(s.strokes).toEqual([{ w: 1, pts: [0, 0, 10, 10, 20, 20] }]);
-    expect(skribbl.apply(s, { type: 'stroke', w: 1, pts: [0, 0, 1, 1] }, b)).toEqual({
+    expect(pictionary.apply(s, { type: 'stroke', w: 1, pts: [0, 0, 1, 1] }, b)).toEqual({
       error: 'not-drawer',
     });
-    expect(skribbl.apply(s, { type: 'stroke', w: 1, pts: [0, 2000] }, a)).toEqual({
+    expect(pictionary.apply(s, { type: 'stroke', w: 1, pts: [0, 2000] }, a)).toEqual({
       error: 'bad-move',
     });
-    s = ok(skribbl.apply(s, { type: 'undo' }, a));
+    s = ok(pictionary.apply(s, { type: 'undo' }, a));
     expect(s.strokes).toEqual([]);
   });
 
-  it('scores typed guesses by speed, and ends the turn when everyone has it', () => {
-    let s = choose(start(skribbl));
-    s = ok(skribbl.apply(s, { type: 'guess', text: 'nope' }, b, { now: 1000 }));
-    expect(s.misses).toEqual([{ by: b, text: 'nope' }]);
-    s = ok(skribbl.apply(s, { type: 'guess', text: ` ${s.word.toUpperCase()} ` }, b, { now: 0 }));
-    expect(s.scores).toEqual([20, 100, 0]);
-    expect((skribbl.view!(s, b) as DrawView).word).toBe(s.word);
-    expect(skribbl.apply(s, { type: 'guess', text: s.word }, b)).toEqual({
-      error: 'already-guessed',
-    });
-    expect(skribbl.apply(s, { type: 'guess', text: 'x' }, a)).toEqual({ error: 'drawer' });
-    s = ok(skribbl.apply(s, { type: 'guess', text: s.word }, c, { now: 30_000 }));
-    expect(s.scores[2]).toBe(50);
-    expect(s.phase).toBe('reveal');
-  });
-
   it('passes the pencil round and ends after the last drawer', () => {
-    let s = choose(start(skribbl, 2));
-    s = skribbl.tick!(s, 60_000);
+    let s = choose(start(pictionary, 2));
+    s = pictionary.tick!(s, 60_000);
     expect(s.phase).toBe('reveal');
-    s = skribbl.tick!(s, 60_000 + DRAW_REVEAL_MS);
+    s = pictionary.tick!(s, 60_000 + DRAW_REVEAL_MS);
     expect(drawerOf(s)).toBe(b);
-    s = skribbl.tick!(skribbl.tick!(skribbl.tick!(s, 200_000), 300_000), 400_000);
-    expect(skribbl.status(s).over).toBe(true);
+    s = pictionary.tick!(pictionary.tick!(pictionary.tick!(s, 200_000), 300_000), 400_000);
+    expect(pictionary.status(s).over).toBe(true);
   });
 
   it('pictionary: the drawer names who said it out loud', () => {
     let s = ok(pictionary.apply(start(pictionary), { type: 'choose', index: 0 }, a, { now: 0 }));
-    expect(pictionary.apply(s, { type: 'guess', text: s.word }, b)).toEqual({ error: 'bad-move' });
+    expect(pictionary.apply(s, { type: 'nonsense' } as never, b)).toEqual({ error: 'bad-move' });
     expect(pictionary.apply(s, { type: 'award', to: c }, b)).toEqual({ error: 'not-drawer' });
     expect(pictionary.apply(s, { type: 'award', to: a }, a)).toEqual({ error: 'bad-move' });
     s = ok(pictionary.apply(s, { type: 'award', to: c }, a, { now: 5 }));
@@ -436,31 +419,31 @@ describe('hints and new options', () => {
   });
 
   it('drawing: an eraser stroke, and letters shown as the clock runs down', () => {
-    let s = skribbl.init(players(2), { seed: 3, now: 0, rounds: 1, seconds: 60 });
-    s = ok(skribbl.apply(s, { type: 'choose', index: 0 }, drawerOf(s), { now: 0 }));
-    s = ok(skribbl.apply(s, { type: 'stroke', w: 3, pts: [0, 0, 5, 5] }, drawerOf(s)));
+    let s = pictionary.init(players(2), { seed: 3, now: 0, rounds: 1, seconds: 60 });
+    s = ok(pictionary.apply(s, { type: 'choose', index: 0 }, drawerOf(s), { now: 0 }));
+    s = ok(pictionary.apply(s, { type: 'stroke', w: 3, pts: [0, 0, 5, 5] }, drawerOf(s)));
     expect(s.strokes[0]!.w).toBe(3);
     const guesser = s.players.find((id) => id !== drawerOf(s))!;
-    const shown = (st: typeof s) => (skribbl.view!(st, guesser) as DrawView).shown;
+    const shown = (st: typeof s) => (pictionary.view!(st, guesser) as DrawView).shown;
     expect(shown(s).every((ch) => ch === null)).toBe(true);
-    expect(skribbl.tick!(s, 29_000)).toBe(s);
-    s = skribbl.tick!(s, 30_000);
+    expect(pictionary.tick!(s, 29_000)).toBe(s);
+    s = pictionary.tick!(s, 30_000);
     expect(shown(s).filter(Boolean)).toHaveLength(1);
-    s = skribbl.tick!(s, 45_000);
+    s = pictionary.tick!(s, 45_000);
     expect(shown(s).filter(Boolean)).toHaveLength(s.word.length <= 4 ? 1 : 2);
     // the letters shown are the word's own, in place
     shown(s).forEach((ch, i) => ch && expect(ch).toBe(s.word[i]));
     // the drawer always sees the whole word
-    expect((skribbl.view!(s, drawerOf(s)) as DrawView).shown.join('')).toBe(s.word);
+    expect((pictionary.view!(s, drawerOf(s)) as DrawView).shown.join('')).toBe(s.word);
     expect(revealCount('cat', 1)).toBe(1);
   });
 });
 
 describe('lobby options', () => {
   it('keeps only known values', () => {
-    expect(normalizeOptions('skribbl', { rounds: 3, seconds: 7 })).toEqual({
+    expect(normalizeOptions('pictionary', { rounds: 3, seconds: 7 })).toEqual({
       rounds: 3,
-      seconds: 80,
+      seconds: 60,
     });
     expect(normalizeOptions('morris', { anything: 1 })).toEqual({});
   });

@@ -7,7 +7,6 @@
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import {
-
   solveFutoshiki,
   solveSudoku,
   solveWordSearch,
@@ -18,10 +17,8 @@ import {
 /** the same, for part of the text */
 const cic = (t) => new RegExp(String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
-
 /** a whole-string match that ignores case, since the app uses sentence case */
 const ci = (t) => new RegExp(`^${String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-
 
 const base = process.argv.slice(2).find((a) => a.startsWith('http')) ?? 'http://localhost:5173';
 const only = process.argv.slice(2).filter((a) => !a.startsWith('http'));
@@ -166,7 +163,7 @@ const games = {
     ].entries()) {
       const p = await mover([ana, ben]);
       await p.page
-        .getByRole('button', { name: new RegExp(`^row ${r}, column ${c}, empty`, "i") })
+        .getByRole('button', { name: new RegExp(`^row ${r}, column ${c}, empty`, 'i') })
         .click();
       await settled(ana, ben, (v) => v.board.filter(Boolean).length === n + 1);
     }
@@ -191,7 +188,7 @@ const games = {
     ];
     for (const [n, where] of edges.entries()) {
       const p = await mover([ana, ben]);
-      await p.page.getByRole('button', { name: new RegExp(`^line, ${where}, open`, "i") }).click();
+      await p.page.getByRole('button', { name: new RegExp(`^line, ${where}, open`, 'i') }).click();
       await settled(ana, ben, (v) => v.edges.filter((e) => e !== null).length === n + 1);
       if (n === 0) {
         // asked to take it back, and the other player keeps it
@@ -210,7 +207,7 @@ const games = {
   async "nine men's morris"(ana, ben, slug) {
     for (const [n, spot] of ['a7', 'a4', 'd7', 'b6', 'g7'].entries()) {
       const p = await mover([ana, ben]);
-      await p.page.getByRole('button', { name: new RegExp(`^${spot},`, "i") }).click();
+      await p.page.getByRole('button', { name: new RegExp(`^${spot},`, 'i') }).click();
       await settled(ana, ben, (v) => v.board.filter((x) => x !== null).length === n + 1);
     }
     await expect(ana.page.getByText(/remove one/i).first()).toBeVisible();
@@ -224,7 +221,7 @@ const games = {
     for (let turn = 0; turn < 25; turn++) {
       const p = turn % 2 === 0 ? ana : ben;
       await expect(
-        p.page.getByText(new RegExp(`your turn|${RESULT.source}`, "i")).first(),
+        p.page.getByText(new RegExp(`your turn|${RESULT.source}`, 'i')).first(),
       ).toBeVisible();
       if (await p.page.getByText(RESULT).count()) break;
       await p.page
@@ -241,7 +238,7 @@ const games = {
     for (let i = 0; i < 7; i++) {
       const p = await mover([ana, ben]);
       const col = p === ana ? 1 : 2;
-      await p.page.getByRole('button', { name: new RegExp(`^column ${col}$`, "i") }).click();
+      await p.page.getByRole('button', { name: new RegExp(`^column ${col}$`, 'i') }).click();
       await settled(ana, ben, (v) => v.moves === i + 1);
       if (i === 4) {
         await wait(500);
@@ -404,55 +401,6 @@ const games = {
     await ended(ana, ben);
     await wait(900);
     await shot(ana, slug, 'end');
-  },
-
-  async skribbl(ana, ben, slug) {
-    const draw = async (p) => {
-      const b = await p.page.locator('[data-canvas]').boundingBox();
-      await p.page.mouse.move(b.x + b.width * 0.2, b.y + b.height * 0.5);
-      await p.page.mouse.down();
-      for (let i = 1; i <= 30; i++) {
-        await p.page.mouse.move(
-          b.x + b.width * (0.2 + i * 0.02),
-          b.y + b.height * (0.5 - Math.sin(i / 5) * 0.2),
-        );
-      }
-      await p.page.mouse.up();
-    };
-    for (const [drawer, guesser] of [
-      [ana, ben],
-      [ben, ana],
-    ]) {
-      await expect(drawer.page.getByRole('group', { name: 'pick a word to draw' })).toBeVisible({
-        timeout: 6000,
-      });
-      if (JSON.stringify(guesser.view()).includes(JSON.stringify(drawer.view().choices))) {
-        throw new Error('skribbl: the guesser received the choices');
-      }
-      await drawer.page
-        .getByRole('group', { name: 'pick a word to draw' })
-        .getByRole('button')
-        .first()
-        .click();
-      await until(() => drawer.view().phase === 'draw', 'drawing to start');
-      const word = drawer.view().word;
-      if (guesser.view().word) throw new Error('skribbl: the guesser received the word');
-      await draw(drawer);
-      await until(() => guesser.view().strokes.length === 1, 'the stroke on the other pc');
-      const pts = guesser.view().strokes[0].pts.length;
-      if (pts < 40) throw new Error(`skribbl: the stroke arrived short (${pts} numbers)`);
-      await guesser.page.getByPlaceholder('your guess').fill('nope');
-      await guesser.page.keyboard.press('Enter');
-      await expect(drawer.page.getByText('nope')).toBeVisible();
-      if (drawer === ana) {
-        await shot(ana, slug, 'drawing');
-        await shot(ben, slug, 'guessing');
-      }
-      await guesser.page.getByPlaceholder('your guess').fill(word.toUpperCase());
-      await guesser.page.keyboard.press('Enter');
-      await expect(drawer.page.getByText(/got it\. the word was/i).first()).toBeVisible();
-    }
-    await ended(ana, ben);
   },
 
   async pictionary(ana, ben, slug) {
@@ -622,17 +570,19 @@ const games = {
       await until(() => ben.view().phase === 'check', 'reading out');
       await expect(ben.page.getByRole('table', { name: "this round's answers" })).toBeVisible();
       await expect(
-        ben.page.getByRole('button', { name: new RegExp(`^ana, thing, ${l}all, 10 points`, "i") }),
+        ben.page.getByRole('button', { name: new RegExp(`^ana, thing, ${l}all, 10 points`, 'i') }),
       ).toBeVisible();
       await expect(
-        ben.page.getByRole('button', { name: new RegExp(`^ana, name, ${l}ob, 5 points`, "i") }),
+        ben.page.getByRole('button', { name: new RegExp(`^ana, name, ${l}ob, 5 points`, 'i') }),
       ).toBeVisible();
       if (round === 1) {
         // with two players, one flag is a majority of the others: it's struck
-        await ben.page.getByRole('button', { name: new RegExp(`^ana, animal, ${l}at`, "i") }).click();
+        await ben.page
+          .getByRole('button', { name: new RegExp(`^ana, animal, ${l}at`, 'i') })
+          .click();
         // on ana's own screen she's "you"
         await expect(
-          ana.page.getByRole('button', { name: new RegExp(`^you, animal, ${l}at, struck`, "i") }),
+          ana.page.getByRole('button', { name: new RegExp(`^you, animal, ${l}at, struck`, 'i') }),
         ).toBeVisible();
         await shot(ben, slug, 'reading');
       }
@@ -818,7 +768,6 @@ const games = {
 
 const options = {
   'word chain': [['time', '10s']],
-  skribbl: [['rounds', '1 round']],
   'name place animal thing': [['rounds', '3 rounds']],
   consequences: [['lines', '5 lines']],
   'word wheel': [['letters', '5 letters']],

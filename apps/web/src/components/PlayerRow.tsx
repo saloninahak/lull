@@ -49,7 +49,7 @@ export function PlayerRow({ seats, active, winners, compact = false }: PlayerRow
                   transition={settle}
                   aria-hidden="true"
                   className={cx(
-                    'absolute -inset-[5px] border-[1.5px] border-ink/25',
+                    'absolute -inset-[6px] border-2 border-ink',
                     s.shape === 'circle' ? 'rounded-full' : 'rounded-[34%]',
                   )}
                 />

@@ -119,25 +119,6 @@ export function Connect4Preview() {
   );
 }
 
-export function SkribblPreview() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3" aria-hidden="true">
-      <svg viewBox="0 0 90 60" className="h-20 w-auto">
-        <path
-          d="M10 48 C 20 18, 34 14, 44 30 S 70 46, 80 14"
-          className="fill-none stroke-ink"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        <circle cx="66" cy="20" r="7" className="fill-none stroke-ink" strokeWidth="2" />
-      </svg>
-      <span className="font-mono text-[12px] tracking-[0.3em] text-muted">
-        _ _ <span className="text-blue">o</span> _ _
-      </span>
-    </div>
-  );
-}
-
 export function PictionaryPreview() {
   return (
     <svg viewBox="0 0 90 70" {...svg}>

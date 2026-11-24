@@ -43,8 +43,13 @@ export default function JoinScreen() {
           value={code}
           onChange={(e) => {
             setBadCode(false);
-            setCode(e.target.value.toUpperCase().slice(0, 6));
+            // a pasted link ("https://…/r/ABCD") becomes just its code
+            const typed = e.target.value.includes('/')
+              ? (e.target.value.split('/').filter(Boolean).pop() ?? '')
+              : e.target.value;
+            setCode(typed.toUpperCase().slice(0, 6));
           }}
+          autoFocus
           hint={badCode ? copy.room.badCode : undefined}
           autoCapitalize="characters"
           autoComplete="off"

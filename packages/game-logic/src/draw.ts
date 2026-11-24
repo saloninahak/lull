@@ -12,19 +12,14 @@ import {
 import { WORDS } from './words.ts';
 
 /**
- * the two drawing games (readme 7.6, 7.7). each turn one player draws a
- * word they picked from three, in plain ink, against a clock.
- *
- * skribbl: everyone else types guesses. a right guess scores more the
- * earlier it comes, and the drawer scores for every person who gets it.
- *
- * pictionary: guesses are said out loud in the room. the drawer taps the
- * name of whoever got it first; both score a point. or "nobody".
+ * pictionary (readme 7.6). each turn one player draws a word they picked
+ * from three, in plain ink, against a clock. guesses are said out loud in
+ * the room. the drawer taps the name of whoever got it first; both score a
+ * point. or "nobody".
  *
  * everyone draws once per round.
  */
 
-export type DrawMode = 'typed' | 'aloud';
 export type DrawOptions = { rounds?: number; seconds?: number };
 
 export const CHOOSE_MS = 15_000;
@@ -46,7 +41,6 @@ export function revealCount(word: string, fractionGone: number): number {
 }
 
 export type DrawState = {
-  mode: DrawMode;
   players: string[];
   scores: number[];
   rounds: number;
@@ -58,10 +52,8 @@ export type DrawState = {
   word: string;
   deadline: number;
   strokes: Stroke[];
-  /** typed mode: who has guessed right this turn, in order */
+  /** who got it this turn (the one the drawer tapped) */
   correct: string[];
-  /** typed mode: the last few wrong guesses, for everyone to see */
-  misses: Array<{ by: string; text: string }>;
   /** positions in the word shown to guessers so far, and the order they come in */
   revealed: number[];
   revealOrder: number[];
@@ -74,18 +66,9 @@ export type DrawMove =
   | { type: 'stroke'; w: number; pts: number[]; cont?: boolean }
   | { type: 'undo' }
   | { type: 'clear' }
-  | { type: 'guess'; text: string }
   | { type: 'award'; to: string | null };
 
-export type DrawError =
-  | 'game-over'
-  | 'not-a-player'
-  | 'not-drawer'
-  | 'drawer'
-  | 'wait'
-  | 'bad-move'
-  | 'already-guessed'
-  | 'full';
+export type DrawError = 'game-over' | 'not-a-player' | 'not-drawer' | 'wait' | 'bad-move' | 'full';
 
 export type DrawView = Omit<DrawState, 'word' | 'choices' | 'rng' | 'revealOrder'> & {
   word: string | null;
@@ -115,7 +98,6 @@ function startTurn(s: DrawState, turn: number, now: number): DrawState {
     word: '',
     strokes: [],
     correct: [],
-    misses: [],
     revealed: [],
     revealOrder: [],
     deadline: now + CHOOSE_MS,
@@ -149,15 +131,13 @@ function reveal(s: DrawState, now: number): DrawState {
   };
 }
 
-const normalize = (t: string) => t.trim().toLowerCase().replace(/\s+/g, ' ');
 const pointCount = (strokes: readonly Stroke[]) => strokes.reduce((n, s) => n + s.pts.length, 0);
 
-export function makeDrawGame(
-  id: Extract<GameId, 'skribbl' | 'pictionary'>,
-  mode: DrawMode,
+function makeDrawGame(
+  id: Extract<GameId, 'pictionary'>,
 ): Game<DrawState, DrawMove, DrawOptions, DrawError> {
   const roundsOk = [1, 2, 3];
-  const secondsOk = mode === 'typed' ? [60, 80, 100] : [45, 60, 90];
+  const secondsOk = [45, 60, 90];
   return {
     id,
     minPlayers: 2,
@@ -167,19 +147,10 @@ export function makeDrawGame(
       checkPlayers(players, 2, 8);
       const ids = players.map((p) => p.id);
       const base: DrawState = {
-        mode,
         players: ids,
         scores: ids.map(() => 0),
-        rounds: roundsOk.includes(options?.rounds ?? 0)
-          ? options!.rounds!
-          : mode === 'typed'
-            ? 2
-            : 1,
-        seconds: secondsOk.includes(options?.seconds ?? 0)
-          ? options!.seconds!
-          : mode === 'typed'
-            ? 80
-            : 60,
+        rounds: roundsOk.includes(options?.rounds ?? 0) ? options!.rounds! : 1,
+        seconds: secondsOk.includes(options?.seconds ?? 0) ? options!.seconds! : 60,
         turn: 0,
         phase: 'choose',
         choices: [],
@@ -187,7 +158,6 @@ export function makeDrawGame(
         deadline: 0,
         strokes: [],
         correct: [],
-        misses: [],
         revealed: [],
         revealOrder: [],
         last: null,
@@ -271,28 +241,7 @@ export function makeDrawGame(
           if (state.phase !== 'draw') return { error: 'wait' };
           return { ...state, strokes: [] };
 
-        case 'guess': {
-          if (mode !== 'typed') return { error: 'bad-move' };
-          if (isDrawer) return { error: 'drawer' };
-          if (state.phase !== 'draw') return { error: 'wait' };
-          if (state.correct.includes(by)) return { error: 'already-guessed' };
-          const text = typeof m.text === 'string' ? normalize(m.text).slice(0, 40) : '';
-          if (!text) return { error: 'bad-move' };
-          if (text !== state.word) {
-            return { ...state, misses: [...state.misses, { by, text }].slice(-6) };
-          }
-          const left = Math.max(0, state.deadline - now) / (state.seconds * 1000);
-          const scores = state.scores.slice();
-          const me = state.players.indexOf(by);
-          scores[me] = (scores[me] ?? 0) + Math.max(20, Math.round(100 * left));
-          const d = state.players.indexOf(drawer);
-          scores[d] = (scores[d] ?? 0) + 20;
-          const next = { ...state, scores, correct: [...state.correct, by] };
-          return next.correct.length >= state.players.length - 1 ? reveal(next, now) : next;
-        }
-
         case 'award': {
-          if (mode !== 'aloud') return { error: 'bad-move' };
           if (!isDrawer) return { error: 'not-drawer' };
           if (state.phase !== 'draw') return { error: 'wait' };
           const to = m.to;
@@ -334,5 +283,4 @@ export function makeDrawGame(
   };
 }
 
-export const skribbl = makeDrawGame('skribbl', 'typed');
-export const pictionary = makeDrawGame('pictionary', 'aloud');
+export const pictionary = makeDrawGame('pictionary');

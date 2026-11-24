@@ -8,12 +8,12 @@ No accounts, no ads, no leaderboards, no tracking. Pick a game, start a room, se
 
 ## What's in it
 
-Nineteen small games. Some you can open and play straight away, some need other people in a room.
+Eighteen small games. Some you can open and play straight away, some need other people in a room.
 
 | Play right away | Needs a room |
 | --- | --- |
 | Tic tac toe, Squares, Nine men's morris, Connect four, Sim (two people on one screen) | Bingo |
-| Sudoku, Zip, Hangman, Word search, Futoshiki, Word wheel (on your own) | Skribbl, Pictionary |
+| Sudoku, Zip, Hangman, Word search, Futoshiki, Word wheel (on your own) | Pictionary |
 | | Word chain, Rock paper scissors |
 | | Name place animal thing |
 | | Consequences, One-word story |
@@ -28,7 +28,7 @@ Puzzles are generated fresh each time, and each one has exactly one solution.
 
 - Start a room from any game and share the code or the link.
 - Friends join with just a name. It's saved on their device, nothing more.
-- The host starts the game. If the host leaves, the next person in takes over.
+- The host starts the game, and can switch to a different game from the lobby without anyone leaving or getting a new code. If the host leaves, the next person in takes over.
 - If your connection drops, your seat is held for two minutes.
 - Rooms live in memory on the server and close soon after everyone leaves. Nothing is stored.
 - The server checks every move, so nobody can peek at a private card or a hidden word. It simply never gets sent to them.

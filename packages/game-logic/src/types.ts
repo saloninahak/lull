@@ -9,7 +9,6 @@ export type GameId =
   | 'morris'
   | 'bingo'
   | 'connect4'
-  | 'skribbl'
   | 'pictionary'
   | 'wordchain'
   | 'hangman'

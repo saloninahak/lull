@@ -20,7 +20,6 @@ export const GAME_ACCENT: Record<GameId, Accent> = {
   morris: 'red',
   bingo: 'green',
   connect4: 'red',
-  skribbl: 'blue',
   pictionary: 'amber',
   wordchain: 'green',
   hangman: 'blue',
